@@ -8,13 +8,15 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/gnomodfetch"
+	"github.com/gnolang/gno/gnovm/pkg/load"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"go.uber.org/multierr"
+	"golang.org/x/mod/module"
 )
 
 func newModCmd(io commands.IO) *commands.Command {
@@ -176,20 +178,35 @@ func execModDownload(cfg *modDownloadCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	// fetch dependencies
-	if err := gnoMod.FetchDeps(gnomod.ModCachePath(), cfg.remote, cfg.verbose); err != nil {
-		return fmt.Errorf("fetch: %w", err)
+	gnoFiles, err := load.GnoFilesFromArgsRecursively([]string{path})
+	if err != nil {
+		return fmt.Errorf("get gno files: %w", err)
 	}
 
-	gomod, err := gnomod.GnoToGoMod(*gnoMod)
-	if err != nil {
-		return fmt.Errorf("sanitize: %w", err)
-	}
+	for _, f := range gnoFiles {
+		fset := token.NewFileSet()
+		parsed, err := parser.ParseFile(fset, f, nil, parser.ImportsOnly)
+		if err != nil {
+			continue
+		}
 
-	// write go.mod file
-	err = gomod.Write(filepath.Join(path, "go.mod"))
-	if err != nil {
-		return fmt.Errorf("write go.mod file: %w", err)
+		for _, imp := range parsed.Imports {
+			importPkgPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, "\""), "\"")
+
+			if !strings.ContainsRune(importPkgPath, '.') {
+				// std lib, ignore
+				continue
+			}
+
+			resolved := gnoMod.Resolve(module.Version{Path: importPkgPath})
+			resolvedPkgPath := resolved.Path
+
+			// TODO: don't fetch local
+
+			if err := gnomodfetch.FetchPackagesRecursively(io, resolvedPkgPath, gnoMod); err != nil {
+				return fmt.Errorf("fetch: %w", err)
+			}
+		}
 	}
 
 	return nil
@@ -276,26 +293,6 @@ func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
 		return err
 	}
 
-	// Drop all existing requires
-	for _, r := range gm.Require {
-		gm.DropRequire(r.Mod.Path)
-	}
-
-	imports, err := getGnoPackageImports(pkgdir)
-	if err != nil {
-		return err
-	}
-	for _, im := range imports {
-		// skip if importpath is modulepath
-		if im == gm.Module.Mod.Path {
-			continue
-		}
-		gm.AddRequire(im, "v0.0.0-latest")
-		if cfg.verbose {
-			io.ErrPrintfln("   %s", im)
-		}
-	}
-
 	gm.Write(fname)
 	return nil
 }
@@ -366,7 +363,7 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		imports, err := getGnoFileImports(filepath.Join(pkgPath, filename))
+		imports, err := load.GetGnoFileImports(filepath.Join(pkgPath, filename))
 		if err != nil {
 			return nil, err
 		}
@@ -376,69 +373,4 @@ func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
 		}
 	}
 	return m, nil
-}
-
-// getGnoPackageImports returns the list of gno imports from a given path.
-// Note: It ignores subdirs. Since right now we are still deciding on
-// how to handle subdirs.
-// See:
-// - https://github.com/gnolang/gno/issues/1024
-// - https://github.com/gnolang/gno/issues/852
-//
-// TODO: move this to better location.
-func getGnoPackageImports(path string) ([]string, error) {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-
-	allImports := make([]string, 0)
-	seen := make(map[string]struct{})
-	for _, e := range entries {
-		filename := e.Name()
-		if ext := filepath.Ext(filename); ext != ".gno" {
-			continue
-		}
-		if strings.HasSuffix(filename, "_filetest.gno") {
-			continue
-		}
-		imports, err := getGnoFileImports(filepath.Join(path, filename))
-		if err != nil {
-			return nil, err
-		}
-		for _, im := range imports {
-			if !strings.HasPrefix(im, "gno.land/") {
-				continue
-			}
-			if _, ok := seen[im]; ok {
-				continue
-			}
-			allImports = append(allImports, im)
-			seen[im] = struct{}{}
-		}
-	}
-	sort.Strings(allImports)
-
-	return allImports, nil
-}
-
-func getGnoFileImports(fname string) ([]string, error) {
-	if !strings.HasSuffix(fname, ".gno") {
-		return nil, fmt.Errorf("not a gno file: %q", fname)
-	}
-	data, err := os.ReadFile(fname)
-	if err != nil {
-		return nil, err
-	}
-	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, fname, data, parser.ImportsOnly)
-	if err != nil {
-		return nil, err
-	}
-	res := make([]string, 0)
-	for _, im := range f.Imports {
-		importPath := strings.TrimPrefix(strings.TrimSuffix(im.Path.Value, `"`), `"`)
-		res = append(res, importPath)
-	}
-	return res, nil
 }
