@@ -27,12 +27,29 @@ func NewCoinSwap(recipient std.Address, hashlock string) (int, *Swap) {
 
 // NewGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It uses gno.land/r/demo/grc20reg to lookup for a registered token.
-func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
-	timelock := time.Now().Add(defaultTimelockDuration)
-	panic("not implemented (depends on #2516)")
-	tokenGetter := grc20reg.MustGet(tokenRegistryKey)
+func NewGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, tokenRegistryKey string) (int, *Swap) {
+	tokenGetter := grc20reg.Get(tokenRegistryKey)
+	require(tokenGetter != nil, ufmt.Sprintf("token %s not found", tokenRegistryKey))
 	token := tokenGetter()
-	return NewCustomGRC20Swap(recipient, hashlock, timelock, token)
+
+	sender := std.PrevRealm().Addr()
+	curAddr := std.CurrentRealm().Addr()
+
+	allowance := token.Allowance(sender, curAddr)
+	require(allowance > 0, "no allowance")
+	userTeller := token.CallerTeller()
+	err := userTeller.TransferFrom(sender, curAddr, allowance)
+	require(err == nil, "cannot retrieve tokens from allowance")
+	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
+	sendFn := func(to std.Address) {
+		err := userTeller.Transfer(to, allowance)
+		require(err == nil, "cannot transfer tokens")
+	}
+	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
+	counter++
+	id := strconv.Itoa(counter)
+	swaps.Set(id, swap)
+	return counter, swap
 }
 
 // NewCoinSwapWithTimelock creates a new atomic swap contract for native coin.

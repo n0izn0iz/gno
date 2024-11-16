@@ -10,6 +10,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
+	"gno.land/r/demo/grc20reg"
 	"gno.land/r/demo/tests/test20"
 )
 
@@ -253,6 +254,86 @@ func TestNewGRC20_Refund(t *testing.T) {
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
 - timelock: 2009-02-13T22:31:30Z
 - remaining: 0s`
+	uassert.Equal(t, expected, swap.String())
+	uassert.Equal(t, expected, Render("1"))
+}
+
+func TestNewGRC20Registered_Claim(t *testing.T) {
+	defer resetTestState()
+
+	// Setup
+	tokenKey := "gno.land/r/demo/test20"
+	sender := testutils.TestAddress("sender")
+	recipient := testutils.TestAddress("recipient")
+	rlm := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
+	hashlock := sha256.Sum256([]byte("secret"))
+	hashlockHex := hex.EncodeToString(hashlock[:])
+	timelock := time.Now().Add(1 * time.Hour)
+
+	// Register test20 because it's not registered at this point for an unknown reason (might be related to https://github.com/gnolang/gno/issues/1852)
+	initialRealm := std.CurrentRealm()
+	std.TestSetRealm(std.NewCodeRealm(tokenKey))
+	grc20reg.Register(test20.Token.Getter(), "")
+	std.TestSetRealm(initialRealm)
+
+	test20.PrivateLedger.Mint(sender, 100_000)
+	test20.PrivateLedger.Approve(sender, rlm, 70_000)
+
+	// Create a new swap
+	std.TestSetRealm(std.NewUserRealm(sender))
+	id, swap := NewGRC20Swap(recipient, hashlockHex, timelock, tokenKey)
+	uassert.Equal(t, 1, id)
+
+	expected := `- status: active
+- sender: g1wdjkuer9wf047h6lta047h6lta047h6ldyx5ax
+- recipient: g1wfjkx6tsd9jkuazlta047h6lta047h6lu0zqma
+- amount: 70000TST
+- hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
+- timelock: 2009-02-14T00:31:30Z
+- remaining: 1h0m0s`
+	uassert.Equal(t, expected, swap.String())
+	uassert.Equal(t, expected, Render("1"))
+
+	// Test initial state
+	uassert.Equal(t, sender, swap.sender, "expected sender to match")
+	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
+	bal := test20.Token.BalanceOf(sender)
+	uassert.Equal(t, bal, uint64(30_000))
+	bal = test20.Token.BalanceOf(rlm)
+	uassert.Equal(t, bal, uint64(70_000))
+	bal = test20.Token.BalanceOf(recipient)
+	uassert.Equal(t, bal, uint64(0))
+
+	// uassert.Equal(t, swap.amountStr, amount.String(), "expected amount to match")
+	uassert.Equal(t, hashlockHex, swap.hashlock, "expected hashlock to match")
+	uassert.True(t, swap.timelock.Equal(timelock), "expected timelock to match")
+	uassert.False(t, swap.claimed, "expected claimed to be false")
+	uassert.False(t, swap.refunded, "expected refunded to be false")
+
+	// Test claim
+	std.TestSetRealm(std.NewUserRealm(recipient))
+	uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
+	swap.Claim("secret")
+	uassert.True(t, swap.claimed, "expected claimed to be true")
+
+	bal = test20.Token.BalanceOf(sender)
+	uassert.Equal(t, bal, uint64(30_000))
+	bal = test20.Token.BalanceOf(rlm)
+	uassert.Equal(t, bal, uint64(0))
+	bal = test20.Token.BalanceOf(recipient)
+	uassert.Equal(t, bal, uint64(70_000))
+
+	// Test refund (should fail because already claimed)
+	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
+	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
+
+	expected = `- status: claimed
+- sender: g1wdjkuer9wf047h6lta047h6lta047h6ldyx5ax
+- recipient: g1wfjkx6tsd9jkuazlta047h6lta047h6lu0zqma
+- amount: 70000TST
+- hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
+- timelock: 2009-02-14T00:31:30Z
+- remaining: 1h0m0s`
 	uassert.Equal(t, expected, swap.String())
 	uassert.Equal(t, expected, Render("1"))
 }
