@@ -11,6 +11,16 @@ import (
 	"gno.land/p/demo/auth"
 )
 
+// XXX: manage with govdao
+var vanity = map[string]string{
+	"gno.land/r/demo/userauth": "u",
+	"gno.land/r/demo/subacc":   "s",
+
+	// debug
+	"gno.land/r/demo/callerauth": "call",
+	"gno.land/r/demo/sessions":   "sess",
+}
+
 var fns = make(map[string]auth.AuthenticateFn)
 
 // XXX: we could add a slug there
@@ -51,9 +61,18 @@ func Authenticate(autok auth.Token) string {
 		panic(errors.New("unknown auth provider"))
 	}
 
+	provider = ProviderSlug(autok.Source())
+
 	// XXX: maybe emit event for audit purposes
 
 	return auth.NamespacedEntityID(provider, authFn(autok))
+}
+
+func ProviderSlug(provider std.Realm) string {
+	if van, ok := vanity[provider.PkgPath()]; ok {
+		return van
+	}
+	return provider.Addr().String()
 }
 
 const (

@@ -1,9 +1,10 @@
-// Package sessions implements an authenticator that allows a mother address to
-// whitelist session addresses that can then act as the mother address using auth tokens.
+// Package sessions implements an authenticator that allows a mother entity to
+// whitelist session entities that can then act as the mother entity using auth tokens.
 package sessions
 
 import (
 	"errors"
+	"path"
 	"std"
 	"time"
 
@@ -25,17 +26,10 @@ func init() {
 	authreg.Register(Authenticate)
 }
 
-// Login creates a session allowing sessionAddr to act as the caller until we're past the expiry time.
-// A nil expiry create a session with no expiration
-func Login(sessionAddr std.Address, unixSecondsExpiry int64) {
-	if !sessionAddr.IsValid() {
-		panic(errors.New("invalid session address"))
-	}
-
-	caller := std.PrevRealm().Addr()
-	if caller == sessionAddr {
-		panic(errors.New("can't login as self"))
-	}
+// Login creates a session allowing an entity identified by sessionEntityID to act as the entity authenticated via authok until we're past the expiry time.
+// A nil expiry creates a session with no expiration
+func Login(authok auth.Token, sessionEntityID string, unixSecondsExpiry int64) {
+	motherEntityID := authreg.Authenticate(authok)
 
 	if unixSecondsExpiry < 0 {
 		panic(errors.New("negative expiry"))
@@ -49,61 +43,73 @@ func Login(sessionAddr std.Address, unixSecondsExpiry int64) {
 		}
 	}
 
-	callerStr := caller.String()
-	if _, ok := sessions[callerStr]; !ok {
-		sessions[callerStr] = make(map[string]*time.Time)
+	if _, ok := sessions[motherEntityID]; !ok {
+		sessions[motherEntityID] = make(map[string]*time.Time)
 	}
 
-	sessions[callerStr][sessionAddr.String()] = expiry
+	sessions[motherEntityID][sessionEntityID] = expiry
 }
 
-// Logout allows to delete sessions.
-//
-// The caller must be one of addr or sessionAddr.
-// addr is the mother address.
-// sessionAddr is the allowed address.
-//
-// If the caller is addr and a zero sessionAddr is passed, Logout will delete all sessions for addr
-func Logout(addr std.Address, sessionAddr std.Address) {
-	caller := std.PrevRealm().Addr()
-	if caller != sessionAddr && caller != addr {
-		panic(errors.New("caller must be addr or sessionAddr"))
-	}
+// LogoutFromSession allows to delete a session when authenticated as the session's entity
+func LogoutFromSession(autok auth.Token, motherEntityID string) {
+	sessionEntityID := authreg.Authenticate(autok)
 
-	addrSessions, ok := sessions[addr.String()]
+	motherEntitySessions, ok := sessions[motherEntityID]
 	if !ok {
-		panic(errors.New("addr has no sessions"))
+		panic(errors.New("entity has no sessions"))
 	}
 
-	// delete all sessions if requested
-	if sessionAddr == std.Address("") {
-		delete(sessions, addr.String())
-		return
+	if _, ok := motherEntitySessions[sessionEntityID]; !ok {
+		panic(errors.New("the authenticated entity is not a session of this entity"))
 	}
 
-	if _, ok := addrSessions[sessionAddr.String()]; !ok {
-		panic(errors.New("sessionAddr is not a session of addr"))
-	}
 	// delete all sessions if it was the last one
-	if len(addrSessions) == 1 {
-		delete(sessions, addr.String())
+	if len(motherEntitySessions) == 1 {
+		delete(sessions, motherEntityID)
 		return
 	}
 
-	delete(addrSessions, sessionAddr.String())
+	delete(motherEntitySessions, sessionEntityID)
+}
+
+// Logout allows to delete sessions when authenticated as the mother entity
+func Logout(autok auth.Token, sessionEntityID string) {
+	motherEntityID := authreg.Authenticate(autok)
+
+	entitySessions, ok := sessions[motherEntityID]
+	if !ok {
+		panic("entity has no sessions")
+	}
+
+	if _, ok := entitySessions[sessionEntityID]; !ok {
+		panic("the authenticated entity is not a session of this entity")
+	}
+
+	// delete all sessions if it was the last one
+	if len(entitySessions) == 1 {
+		delete(sessions, motherEntityID)
+		return
+	}
+
+	delete(entitySessions, sessionEntityID)
+}
+
+// LogoutAll allows to delete all sessions for an entity
+func LogoutAll(autok auth.Token) {
+	entityID := authreg.Authenticate(autok)
+
+	if _, ok := sessions[entityID]; !ok {
+		panic(errors.New("entity has no sessions"))
+	}
+
+	delete(sessions, entityID)
 }
 
 // AuthToken constructs a session token.
-// `as` is the mother address and the caller is the allowed address.
-//
-// It is not validated at creation.
-// We need to validate at authentication anyway since prevalidated tokens could be stored and reused after the session is deleted or expired.
-//
-// A token is always considered valid if caller == as
-func AuthToken(as std.Address) auth.Token {
+func AuthToken(sessionToken auth.Token, motherEntityID string) auth.Token {
 	return &token{
-		addr:        as,
-		sessionAddr: std.PrevRealm().Addr(),
+		sessionToken:   sessionToken,
+		motherEntityID: motherEntityID,
 	}
 }
 
@@ -114,11 +120,11 @@ func Authenticate(autok auth.Token) string {
 		panic(auth.ErrInvalidToken)
 	}
 
-	addr := val.addr.String()
-	sessionAddr := val.sessionAddr.String()
+	motherEntityID := val.motherEntityID
+	sessionEntityID := authreg.Authenticate(val.sessionToken)
 
-	if addr != sessionAddr {
-		expiry, ok := sessions[addr][sessionAddr]
+	if motherEntityID != sessionEntityID {
+		expiry, ok := sessions[motherEntityID][sessionEntityID]
 		if !ok {
 			panic(auth.ErrInvalidToken)
 		}
@@ -127,17 +133,17 @@ func Authenticate(autok auth.Token) string {
 		}
 	}
 
-	return "/" + addr
+	return path.Join("/", motherEntityID)
 }
 
-// EntityID returns the full entity ID for an address
-func EntityID(addr std.Address) string {
-	return "/" + source.Addr().String() + "/" + addr.String()
+// EntityID returns the full entity ID for a mother entity
+func EntityID(motherEntityID string) string {
+	return auth.NamespacedEntityID(authreg.ProviderSlug(source), motherEntityID)
 }
 
 type token struct {
-	addr        std.Address
-	sessionAddr std.Address
+	sessionToken   auth.Token
+	motherEntityID string
 }
 
 func (t *token) Source() std.Realm {

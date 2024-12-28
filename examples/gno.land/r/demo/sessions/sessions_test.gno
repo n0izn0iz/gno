@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/auth"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
+	"gno.land/r/demo/callerauth"
 )
 
 // TODO: more extensive tests
@@ -14,15 +15,17 @@ import (
 func TestSessions(t *testing.T) {
 	aliceAddr := testutils.TestAddress("alice")
 	aliceRealm := std.NewUserRealm(aliceAddr)
+	aliceEntityID := callerauth.EntityID(aliceAddr)
 
 	bobAddr := testutils.TestAddress("bob")
 	bobRealm := std.NewUserRealm(bobAddr)
+	bobEntityID := callerauth.EntityID(bobAddr)
 
 	// no session created
 	{
 		std.TestSetRealm(bobRealm)
 
-		autok := AuthToken(aliceAddr)
+		autok := AuthToken(callerauth.AuthToken(), aliceEntityID)
 		urequire.PanicsWithMessage(t, auth.ErrInvalidToken.Error(), func() {
 			Authenticate(autok)
 		})
@@ -32,17 +35,17 @@ func TestSessions(t *testing.T) {
 	{
 		std.TestSetRealm(aliceRealm)
 
-		Login(bobAddr, NoExpiry)
+		Login(callerauth.AuthToken(), bobEntityID, NoExpiry)
 
 		std.TestSetRealm(bobRealm)
 
-		autok := AuthToken(aliceAddr)
+		autok := AuthToken(callerauth.AuthToken(), aliceEntityID)
+
 		entityID := Authenticate(autok)
-		urequire.Equal(t, "/"+aliceAddr.String(), entityID)
+		urequire.Equal(t, aliceEntityID, entityID)
 
-		Logout(aliceAddr, bobAddr)
+		LogoutFromSession(callerauth.AuthToken(), aliceEntityID)
 
-		autok = AuthToken(aliceAddr)
 		urequire.PanicsWithMessage(t, auth.ErrInvalidToken.Error(), func() {
 			Authenticate(autok)
 		})

@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/authreg"
+	"gno.land/r/demo/callerauth"
 	"gno.land/r/demo/sessions"
 )
 
@@ -23,10 +24,12 @@ func init() {
 }
 
 func CreateCallerAccount() seqid.ID {
+	nextID := id + 1
+	sessions.Login(&token{accountID: nextID, internal: true}, callerauth.EntityID(std.PrevRealm().Addr()), 0)
 	authorities := []Authority{
 		{
 			Provider: std.DerivePkgAddr("gno.land/r/demo/sessions"),
-			EntityID: sessions.EntityID(std.PrevRealm().Addr()),
+			EntityID: sessions.EntityID(EntityID(nextID)),
 		},
 	}
 	return CreateAccount(authorities...)
@@ -81,6 +84,10 @@ func authenticateID(autok auth.Token) seqid.ID {
 		panic(auth.ErrInvalidToken)
 	}
 
+	if val.internal {
+		return val.accountID
+	}
+
 	entityID := authreg.Authenticate(val.subToken)
 	provider := val.subToken.Source().Addr()
 	if _, ok := accounts[val.accountID].authorities[provider][entityID]; !ok {
@@ -102,6 +109,7 @@ type Authority struct {
 type token struct {
 	accountID seqid.ID
 	subToken  auth.Token
+	internal  bool
 }
 
 func (t *token) Source() std.Realm {

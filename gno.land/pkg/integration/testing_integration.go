@@ -637,7 +637,7 @@ func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic str
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
+		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e9)},
 	}, nil
 }
 

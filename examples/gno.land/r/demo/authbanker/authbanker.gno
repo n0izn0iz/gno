@@ -10,9 +10,7 @@ import (
 	"std"
 	"strings"
 
-	"gno.land/p/demo/auth"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/authreg"
 )
 
 const denom = "ugnot"
@@ -27,12 +25,13 @@ func GetCoins(entityID string) int64 {
 // SendCoins sends `amount` coins from the vault identified by `atok` to the account identified by `to`.
 //
 // `to` can be an entity ID or an address.
-func SendCoins(atok auth.Token, to string, amount int64) {
+func SendCoins(from string, to string, amount int64) {
 	if amount < 1 {
 		panic("sent amount must be >= 0")
 	}
 
-	from := authreg.Authenticate(atok)
+	authenticator := useracc.Authenticator(from)
+	from = authenticator.Authenticate()
 
 	if from == to {
 		panic("cannot send to self")

@@ -15,21 +15,13 @@ loadpkg gno.land/r/demo/sessions
 gnoland start
 
 
-# create alice's abstract account
-gnokey maketx call alice -pkgpath gno.land/r/demo/absacc -func CreateCallerAccount -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
-stdout '1'
-
-# create bob's abstract account
-gnokey maketx call alice -pkgpath gno.land/r/demo/absacc -func CreateCallerAccount -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
-stdout '2'
-
-
+# setup alice abstract account
 
 # fund alice's abstract account
-gnokey maketx call alice -send 42ugnot -pkgpath gno.land/r/demo/authbanker -func FundVault -args "/g147gkrl6u5txjcvqpcm8ucamscg3f6qdnkht3lp/1"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+gnokey maketx call alice -send 42ugnot -pkgpath gno.land/r/demo/authbanker -func FundVault -args "/u/alice_42"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
 
 # check alice account
-gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g147gkrl6u5txjcvqpcm8ucamscg3f6qdnkht3lp/1" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/u/alice_42" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout '42'
 
 

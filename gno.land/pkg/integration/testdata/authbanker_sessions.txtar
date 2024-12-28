@@ -4,56 +4,91 @@ stdout 'g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e'
 adduserfrom bob 'trap silent cross fold brisk burger teach end history sunset ignore swear proud female faculty burden upper change apart wink view stove surge answer'
 stdout 'g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj'
 
+loadpkg gno.land/r/demo/users
+loadpkg gno.land/r/demo/userauth
 loadpkg gno.land/r/demo/authbanker
 loadpkg gno.land/r/demo/sessions
 
 ## start a new node
 gnoland start
 
+# register alice
+gnokey maketx call alice -send 20000000ugnot -pkgpath gno.land/r/demo/users -func Register -args "" -args "alice_42" -args ""  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
 
-# fund alice's sessions account
-gnokey maketx call alice -send 42ugnot -pkgpath gno.land/r/demo/authbanker -func FundVault -args "/g1w4yzwsdjge80nvltnrrh6c66sm607lr828j32f/g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+# register bob
+gnokey maketx call bob -send 20000000ugnot -pkgpath gno.land/r/demo/users -func Register -args "" -args "bob_42" -args ""  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+
+
+# fund alice's user account
+gnokey maketx call alice -send 42ugnot -pkgpath gno.land/r/demo/authbanker -func FundVault -args "/u/alice_42"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
 
 # check alice account
-gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g1w4yzwsdjge80nvltnrrh6c66sm607lr828j32f/g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/u/alice_42" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout '42'
 
-# login, allowing bob to act as alice indefinitely
-gnokey maketx call alice -pkgpath gno.land/r/demo/sessions -func Login -args "g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj" -args "0"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
 
-# as bob, send from alice's session account
-gnokey maketx run bob $WORK/send_to_bob.gno -gas-fee 1000000ugnot -gas-wanted 25000000 -broadcast -chainid=tendermint_test
+# login, allowing bob to act as alice indefinitely
+gnokey maketx run alice $WORK/login.gno -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+
+# as bob, send from alice's account
+gnokey maketx run bob $WORK/send_to_bob.gno -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
 
 # check alice account
-gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/g1w4yzwsdjge80nvltnrrh6c66sm607lr828j32f/g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/u/alice_42" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout '28'
 
-# XXX: check bob's address coins
+# check bob account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/u/bob_42" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '14'
 
 # logout
-gnokey maketx call bob -pkgpath gno.land/r/demo/sessions -func Logout -args "g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e" -args "g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+gnokey maketx run bob $WORK/logout.gno -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
 
 # as bob, try send from alice's session account, should fail
 ! gnokey maketx run bob $WORK/send_to_bob.gno -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
 
+-- login.gno --
+package main
+
+import (
+    "gno.land/r/demo/sessions"
+    "gno.land/r/demo/userauth"
+    "gno.land/r/demo/callerauth"
+)
+
+func main() {
+    userToken := userauth.AuthToken(callerauth.AuthToken(), "alice_42")
+    sessions.Login(userToken, userauth.EntityID("bob_42"), sessions.NoExpiry)
+    userauth.SetSpec(userauth.AuthToken(callerauth.AuthToken(), "alice_42"), userauth.AuthSpec{"gno.land/r/demo/sessions", "/sess/u/alice_42"})
+}
 
 -- send_to_bob.gno --
 package main
 
 import (
-    "std"
-
     "gno.land/r/demo/sessions"
+    "gno.land/r/demo/userauth"
+    "gno.land/r/demo/callerauth"
     "gno.land/r/demo/authbanker"
 )
 
 func main() {
-    aliceAddr := std.Address("g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e")
-    autok := sessions.AuthToken(aliceAddr)
+    callerToken := userauth.AuthToken(callerauth.AuthToken(), "bob_42")
+    sessionToken := sessions.AuthToken(callerToken, userauth.EntityID("alice_42"))
+    autok := userauth.AuthToken(sessionToken, "alice_42")
+    authbanker.SendCoins(autok, userauth.EntityID("bob_42"), 14)
+}
 
-    bobsAddr := "g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj"
+-- logout.gno --
+package main
 
-    amount := int64(14)
+import (
+    "gno.land/r/demo/sessions"
+    "gno.land/r/demo/userauth"
+    "gno.land/r/demo/callerauth"
+)
 
-    authbanker.SendCoins(autok, bobsAddr, amount)
+func main() {
+    callerToken := userauth.AuthToken(callerauth.AuthToken(), "bob_42")
+    sessions.LogoutFromSession(callerToken, userauth.EntityID("alice_42"))
 }

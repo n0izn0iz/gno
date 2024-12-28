@@ -1,4 +1,4 @@
-// Package subacc (short for sub-accounts) implements an authenticator based on the caller and an user-provided slug.
+// Package subacc (short for sub-accounts) implements an authenticator based on the calling entity and an user-provided slug.
 package subacc
 
 import (
@@ -20,13 +20,13 @@ func init() {
 //
 // Returned tokens have an entity ID namespaced with the caller address, preventing
 // malicious callers from impersonating another address.
-func AuthToken(slug string) auth.Token {
-	caller := std.PrevRealm().Addr()
-	return &token{accountKey: accountID(caller, slug)}
+func AuthToken(ownerToken auth.Token, slug string) auth.Token {
+	return &token{ownerToken: ownerToken, slug: slug}
 }
 
 type token struct {
-	accountKey string
+	ownerToken auth.Token
+	slug       string
 }
 
 func (a *token) Source() std.Realm {
@@ -42,16 +42,18 @@ func Authenticate(autok auth.Token) string {
 		panic(auth.ErrInvalidToken)
 	}
 
-	return val.accountKey
+	ownerID := authreg.Authenticate(val.ownerToken)
+
+	return accountID(ownerID, val.slug)
 }
 
 var _ auth.AuthenticateFn = Authenticate
 
 // EntityID returns the full entity ID for an address and a slug
-func EntityID(addr std.Address, slug string) string {
-	return path.Join("/", source.Addr().String(), accountID(addr, slug))
+func EntityID(owner string, slug string) string {
+	return path.Join("/", authreg.ProviderSlug(source), accountID(owner, slug))
 }
 
-func accountID(creator std.Address, slug string) string {
-	return auth.NamespacedEntityID(creator.String(), slug)
+func accountID(owner string, slug string) string {
+	return auth.NamespacedEntityID(owner, slug)
 }
