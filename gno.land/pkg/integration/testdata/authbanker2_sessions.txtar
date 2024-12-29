@@ -1,0 +1,50 @@
+adduserfrom alice 'garbage still snack cake identify girl used spoil all reform allow cargo control model spider sound urban rural avoid obvious august oil large cake'
+stdout 'g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e'
+
+adduserfrom bob 'trap silent cross fold brisk burger teach end history sunset ignore swear proud female faculty burden upper change apart wink view stove surge answer'
+stdout 'g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj'
+
+loadpkg gno.land/r/demo/users
+loadpkg gno.land/r/demo/authbanker
+loadpkg gno.land/r/demo/sessions
+
+## start a new node
+gnoland start
+
+
+# register alice
+gnokey maketx call alice -send 20000000ugnot -pkgpath gno.land/r/demo/users -func Register -args "" -args "alice_42" -args ""  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+
+# register bob
+gnokey maketx call bob -send 20000000ugnot -pkgpath gno.land/r/demo/users -func Register -args "" -args "bob_42" -args ""  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+
+
+# fund alice's user account
+gnokey maketx call alice -send 42ugnot -pkgpath gno.land/r/demo/authbanker -func FundVault -args "/u/alice_42"  -gas-fee 1000000ugnot -gas-wanted 15000000 -broadcast -chainid=tendermint_test
+
+# check alice account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/u/alice_42" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '42'
+
+
+# login, allowing bob to act as alice
+gnokey maketx call alice -pkgpath gno.land/r/demo/sessions -func "LoginCall" -args "/u/alice_42" -args "/u/bob_42" -args 0 -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+
+
+# as bob, send from alice's account
+gnokey maketx call bob -pkgpath gno.land/r/demo/authbanker -func "SendCoinsCall" -args "/u/alice_42" -args "/u/bob_42" -args 14 -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+
+# check alice account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/u/alice_42" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '28'
+
+# check bob account
+gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/u/bob_42" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout '14'
+
+
+# logout
+gnokey maketx run alice -pkgpath gno.land/r/demo/sessions -func "LogoutCall" -args "" -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+
+# as bob, try send from alice's account, should fail
+! gnokey maketx call bob -pkgpath gno.land/r/demo/authbanker -func "SendCoinsCall" -args "/u/alice_42" -args "/u/bob_42" -args 14 -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test

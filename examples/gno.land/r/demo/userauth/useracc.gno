@@ -7,7 +7,6 @@ import (
 
 	"gno.land/p/demo/auth"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/users"
 	"gno.land/r/demo/authreg"
 	"gno.land/r/demo/callerauth"
 	rusers "gno.land/r/demo/users"
@@ -84,11 +83,11 @@ func EntityID(username string) string {
 
 var authenticators = make(map[string]auth.Authenticator)
 
-func ResolveAuthenticator(authPath string) auth.Authenticator {
+func Authenticator(authPath string) (string, auth.Authenticator) {
 	if !strings.HasPrefix(authPath, "/u/") {
 		panic(ufmt.Errorf("can't resolve non-user auth-path %q", authPath))
 	}
-	segments := strings.Split(path.Clean(authPath[len("/u/"):]), "/")
+	segments := strings.SplitN(path.Clean(authPath[len("/u/"):]), "/", 2)
 	if len(segments) < 1 {
 		panic(ufmt.Errorf("missing user segment in auth-path %q", authPath))
 	}
@@ -101,16 +100,5 @@ func ResolveAuthenticator(authPath string) auth.Authenticator {
 	if authenticator == nil {
 		authenticator = auth.NewCallerAuth([]std.Address{user.Address})
 	}
-	return auth.ResolveLeaf(authenticator, strings.Join(segments[1:], "/"))
-}
-
-type UserAuth struct {
-}
-
-func NewUserAuth(user users.AddressOrName) *UserAuth {
-	return &UserAuth{}
-}
-
-func Children() {
-
+	return username, auth.ResolveLeaf(authenticator, segments[1])
 }

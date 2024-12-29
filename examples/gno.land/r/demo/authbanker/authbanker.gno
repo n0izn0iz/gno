@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/userauth"
 )
 
 const denom = "ugnot"
@@ -18,29 +19,29 @@ const denom = "ugnot"
 var vaults = make(map[string]int64)
 
 // GetCoins returns the amount of coins in the vault identified by `entityID`
-func GetCoins(entityID string) int64 {
-	return vaults[entityID]
+func GetCoins(authPath string) int64 {
+	return vaults[authPath]
 }
 
 // SendCoins sends `amount` coins from the vault identified by `atok` to the account identified by `to`.
 //
 // `to` can be an entity ID or an address.
-func SendCoins(from string, to string, amount int64) {
+func SendCoins(authPath string, to string, amount int64) {
 	if amount < 1 {
 		panic("sent amount must be >= 0")
 	}
 
-	authenticator := useracc.Authenticator(from)
-	from = authenticator.Authenticate()
+	username, authenticator := userauth.Authenticator(authPath)
+	authenticator.Authenticate("")
 
-	if from == to {
+	if "/u/"+username == to {
 		panic("cannot send to self")
 	}
-	if vaultAmount := vaults[from]; amount > vaultAmount {
-		panic(ufmt.Errorf("not enough in account %q", from))
+	if vaultAmount := vaults[authPath]; amount > vaultAmount {
+		panic(ufmt.Errorf("not enough in account %q", authPath))
 	}
 
-	vaults[from] -= amount
+	vaults[authPath] -= amount
 
 	if isEntityID(to) {
 		vaults[to] += amount
@@ -54,9 +55,9 @@ func SendCoins(from string, to string, amount int64) {
 
 // FundVault funds the vault identified by `entityID` with the `OrigSend` coins.
 // It panics if it's not an `OriginCall`.
-func FundVault(entityID string) {
+func FundVault(authPath string) {
 	// XXX: maybe replace the following with `authreg.Validate(to)`
-	if !isEntityID(entityID) {
+	if !isEntityID(authPath) {
 		panic("invalid destination")
 	}
 
@@ -70,7 +71,7 @@ func FundVault(entityID string) {
 		if coin.Amount <= 0 {
 			panic(errors.New("send amount must be > 0"))
 		}
-		vaults[entityID] += coin.Amount
+		vaults[authPath] += coin.Amount
 	}
 }
 

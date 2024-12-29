@@ -26,7 +26,7 @@ func ResolveLeaf(node Authenticator, authPath string) Authenticator {
 
 func ResolvePath(node Authenticator, authPath string) Authenticator {
 	cleanPath := path.Clean(authPath)
-	if len(cleanPath) == 0 || cleanPath[0] == '/' {
+	if cleanPath[0] == '/' {
 		panic(ufmt.Errorf("invalid auth path %q", authPath))
 	}
 	segments := strings.Split(cleanPath, "/")

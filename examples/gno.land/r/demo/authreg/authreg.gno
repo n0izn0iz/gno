@@ -6,9 +6,12 @@ package authreg
 
 import (
 	"errors"
+	"path"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/auth"
+	"gno.land/p/demo/ufmt"
 )
 
 // XXX: manage with govdao
@@ -20,6 +23,14 @@ var vanity = map[string]string{
 	"gno.land/r/demo/callerauth": "call",
 	"gno.land/r/demo/sessions":   "sess",
 }
+
+var reverseVanity = func() map[string]string {
+	reverse := make(map[string]string, len(vanity))
+	for key, val := range vanity {
+		reverse[val] = key
+	}
+	return reverse
+}()
 
 var fns = make(map[string]auth.AuthenticateFn)
 
@@ -66,6 +77,40 @@ func Authenticate(autok auth.Token) string {
 	// XXX: maybe emit event for audit purposes
 
 	return auth.NamespacedEntityID(provider, authFn(autok))
+}
+
+func PathAuthenticator(authPath string) auth.Authenticator {
+	authPath = path.Clean(authPath)
+	if len(authPath) == 0 || authPath[0] != '/' {
+		panic("invalid auth path %q")
+	}
+
+	subPath := authPath[1:]
+	node := auth.Authenticator(nil)
+	for {
+		segments := strings.SplitN(subPath, "/", 2)
+		node, subPath = GetAuthenticator(segments[0]).Resolve(segments[1])
+		if node.IsLeaf() {
+			return node
+		}
+		if node == nil {
+			panic(ufmt.Errorf("unknown path %q", authPath))
+		}
+	}
+}
+
+var authenticators = make(map[string]auth.Authenticator)
+
+func GetAuthenticator(name string) auth.Authenticator {
+	resolved, ok := reverseVanity[name]
+	if !ok {
+		resolved = name
+	}
+	authenticator, ok := authenticators[resolved]
+	if !ok {
+		panic(ufmt.Errorf("unknown authenticator %q", name))
+	}
+	return authenticator
 }
 
 func ProviderSlug(provider std.Realm) string {

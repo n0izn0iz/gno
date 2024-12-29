@@ -50,6 +50,30 @@ func Login(authok auth.Token, sessionEntityID string, unixSecondsExpiry int64) {
 	sessions[motherEntityID][sessionEntityID] = expiry
 }
 
+// LoginCall creates a session allowing an entity identified by sessionEntityID to act as the entity authenticated via authok until we're past the expiry time.
+// A nil expiry creates a session with no expiration
+func LoginCall(authPath string, sessionEntityID string, unixSecondsExpiry int64) {
+	motherEntityID := authreg.AuthenticatePath(authPath)
+
+	if unixSecondsExpiry < 0 {
+		panic(errors.New("negative expiry"))
+	}
+	expiry := (*time.Time)(nil)
+	if unixSecondsExpiry > 0 {
+		timeExpiry := time.Unix(unixSecondsExpiry, 0)
+		expiry = &timeExpiry
+		if !expiry.After(time.Now()) {
+			panic(errors.New("expiry is now or in the past"))
+		}
+	}
+
+	if _, ok := sessions[motherEntityID]; !ok {
+		sessions[motherEntityID] = make(map[string]*time.Time)
+	}
+
+	sessions[motherEntityID][sessionEntityID] = expiry
+}
+
 // LogoutFromSession allows to delete a session when authenticated as the session's entity
 func LogoutFromSession(autok auth.Token, motherEntityID string) {
 	sessionEntityID := authreg.Authenticate(autok)
