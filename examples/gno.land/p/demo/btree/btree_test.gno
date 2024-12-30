@@ -16,6 +16,7 @@ type Content struct {
 // Less compares two Content records by their Keys.
 // The Key must be either an int or a string.
 func (c Content) Less(than Record) bool {
+
 	other, ok := than.(Content)
 	if !ok {
 		panic("cannot compare: incompatible types")

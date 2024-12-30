@@ -5,48 +5,56 @@ import (
 	"testing"
 
 	"gno.land/p/demo/auth"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 )
 
 func TestAuthreg(t *testing.T) {
-	autok := &testAuthToken{source: std.NewCodeRealm("gno.land/r/testing/tester")}
-	unknownAutok := &testAuthToken{source: std.NewCodeRealm("gno.land/r/testing/unknown")}
-	called := false
-	mockAuthFn := func(autok auth.Token) string {
-		called = true
-		return "alice"
-	}
+	authRealm := std.NewCodeRealm("gno.land/r/testing/tester")
+	unknownRealm := std.NewCodeRealm("gno.land/r/testing/unknown")
 
-	std.TestSetRealm(autok.Source())
-	Register(mockAuthFn)
+	std.TestSetRealm(authRealm)
+	ma := &mockAuth{}
+	Register(func() auth.Authenticator { return ma })
 
-	// test auth
-	val := Authenticate(autok)
-	urequire.True(t, called)
-	expected := ufmt.Sprintf("/%s/%s", autok.Source().Addr().String(), "alice")
-	urequire.Equal(t, expected, val)
+	// test get
+	Resolve(authRealm.Addr().String()).Authenticate()
+	urequire.True(t, ma.called)
 
 	// test unknown provider
-	called = false
 	urequire.PanicsWithMessage(t, "unknown auth provider", func() {
-		Authenticate(unknownAutok)
+		Resolve(unknownRealm.Addr().String())
 	})
-	urequire.False(t, called)
 
 	// test unregistering
 	Register(nil)
 	urequire.PanicsWithMessage(t, "unknown auth provider", func() {
-		Authenticate(autok)
+		Resolve(authRealm.Addr().String())
 	})
 }
 
-type testAuthToken struct {
-	source std.Realm
+type mockAuth struct {
+	called bool
 }
 
-func (t *testAuthToken) Source() std.Realm {
-	return t.source
+var _ auth.Authenticator = (*mockAuth)(nil)
+
+// Authenticate implements auth.Authenticator.
+func (m *mockAuth) Authenticate() error {
+	m.called = true
+	return nil
 }
 
-var _ auth.Token = (*testAuthToken)(nil)
+// Child implements auth.Authenticator.
+func (m *mockAuth) Child(key string) auth.Authenticator {
+	panic("unimplemented")
+}
+
+// Children implements auth.Authenticator.
+func (m *mockAuth) Children() map[string]auth.Authenticator {
+	panic("unimplemented")
+}
+
+// Render implements auth.Authenticator.
+func (m *mockAuth) Render() string {
+	panic("unimplemented")
+}

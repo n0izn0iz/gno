@@ -10,8 +10,9 @@ import (
 	"std"
 	"strings"
 
+	"gno.land/p/demo/auth"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/userauth"
+	"gno.land/r/demo/authreg"
 )
 
 const denom = "ugnot"
@@ -31,17 +32,16 @@ func SendCoins(authPath string, to string, amount int64) {
 		panic("sent amount must be >= 0")
 	}
 
-	username, authenticator := userauth.Authenticator(authPath)
-	authenticator.Authenticate("")
+	entityID := auth.AssertEntity(authPath, authreg.Resolve)
 
-	if "/u/"+username == to {
+	if entityID == to {
 		panic("cannot send to self")
 	}
-	if vaultAmount := vaults[authPath]; amount > vaultAmount {
-		panic(ufmt.Errorf("not enough in account %q", authPath))
+	if vaultAmount := vaults[entityID]; amount > vaultAmount {
+		panic(ufmt.Errorf("not enough in account %q", entityID))
 	}
 
-	vaults[authPath] -= amount
+	vaults[entityID] -= amount
 
 	if isEntityID(to) {
 		vaults[to] += amount

@@ -6,9 +6,7 @@ package authreg
 
 import (
 	"errors"
-	"path"
 	"std"
-	"strings"
 
 	"gno.land/p/demo/auth"
 	"gno.land/p/demo/ufmt"
@@ -32,10 +30,10 @@ var reverseVanity = func() map[string]string {
 	return reverse
 }()
 
-var fns = make(map[string]auth.AuthenticateFn)
+var authenticators = make(map[string]func() auth.Authenticator)
 
 // XXX: we could add a slug there
-func Register(authenticate auth.AuthenticateFn) {
+func Register(authenticator func() auth.Authenticator) {
 	caller := std.PrevRealm()
 	/*
 		XXX: this check makes the linter panic
@@ -45,12 +43,12 @@ func Register(authenticate auth.AuthenticateFn) {
 	*/
 	callerStr := caller.Addr().String()
 
-	if authenticate == nil {
-		if _, ok := fns[callerStr]; !ok {
+	if authenticator == nil {
+		if _, ok := authenticators[callerStr]; !ok {
 			panic(errors.New("not registered"))
 		}
 
-		delete(fns, callerStr)
+		delete(authenticators, callerStr)
 		std.Emit(
 			unregisterEvent,
 			"caller", callerStr,
@@ -58,50 +56,14 @@ func Register(authenticate auth.AuthenticateFn) {
 		return
 	}
 
-	fns[callerStr] = authenticate
+	authenticators[callerStr] = authenticator
 	std.Emit(
 		registerEvent,
 		"caller", callerStr,
 	)
 }
 
-func Authenticate(autok auth.Token) string {
-	provider := autok.Source().Addr().String()
-	authFn, ok := fns[provider]
-	if !ok {
-		panic(errors.New("unknown auth provider"))
-	}
-
-	provider = ProviderSlug(autok.Source())
-
-	// XXX: maybe emit event for audit purposes
-
-	return auth.NamespacedEntityID(provider, authFn(autok))
-}
-
-func PathAuthenticator(authPath string) auth.Authenticator {
-	authPath = path.Clean(authPath)
-	if len(authPath) == 0 || authPath[0] != '/' {
-		panic("invalid auth path %q")
-	}
-
-	subPath := authPath[1:]
-	node := auth.Authenticator(nil)
-	for {
-		segments := strings.SplitN(subPath, "/", 2)
-		node, subPath = GetAuthenticator(segments[0]).Resolve(segments[1])
-		if node.IsLeaf() {
-			return node
-		}
-		if node == nil {
-			panic(ufmt.Errorf("unknown path %q", authPath))
-		}
-	}
-}
-
-var authenticators = make(map[string]auth.Authenticator)
-
-func GetAuthenticator(name string) auth.Authenticator {
+func Resolve(name string) auth.Authenticator {
 	resolved, ok := reverseVanity[name]
 	if !ok {
 		resolved = name
@@ -110,7 +72,7 @@ func GetAuthenticator(name string) auth.Authenticator {
 	if !ok {
 		panic(ufmt.Errorf("unknown authenticator %q", name))
 	}
-	return authenticator
+	return authenticator()
 }
 
 func ProviderSlug(provider std.Realm) string {

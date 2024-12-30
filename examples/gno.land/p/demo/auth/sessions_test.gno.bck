@@ -1,4 +1,4 @@
-package sessions
+package auth_test
 
 import (
 	"std"

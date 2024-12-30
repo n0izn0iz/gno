@@ -4,9 +4,11 @@ stdout 'g1xd348e34sg4ndt3shpepv85dq8zw8dlufp9t6e'
 adduserfrom bob 'trap silent cross fold brisk burger teach end history sunset ignore swear proud female faculty burden upper change apart wink view stove surge answer'
 stdout 'g1gvcsfj492u6cpxudrprzz23ulmppxgv9pqmnpj'
 
+loadpkg gno.land/p/demo/auth
+loadpkg gno.land/r/demo/authreg
 loadpkg gno.land/r/demo/users
 loadpkg gno.land/r/demo/authbanker
-loadpkg gno.land/r/demo/sessions
+loadpkg gno.land/r/demo/userauth
 
 ## start a new node
 gnoland start
@@ -27,12 +29,12 @@ gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/
 stdout '42'
 
 
-# login, allowing bob to act as alice
-gnokey maketx call alice -pkgpath gno.land/r/demo/sessions -func "LoginCall" -args "/u/alice_42" -args "/u/bob_42" -args 0 -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+# setup alice auth, allowing bob to act as alice
+gnokey maketx run alice $WORK/setup_auth.gno -gas-fee 1000000ugnot -gas-wanted 25000000 -broadcast -chainid=tendermint_test
 
 
 # as bob, send from alice's account
-gnokey maketx call bob -pkgpath gno.land/r/demo/authbanker -func "SendCoinsCall" -args "/u/alice_42" -args "/u/bob_42" -args 14 -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+gnokey maketx call bob -pkgpath gno.land/r/demo/authbanker -func "SendCoins" -args "/u/alice_42/sess/u/bob_42" -args "/u/bob_42" -args 14 -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
 
 # check alice account
 gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/u/alice_42" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
@@ -43,8 +45,44 @@ gnokey maketx call -pkgpath gno.land/r/demo/authbanker -func "GetCoins" -args "/
 stdout '14'
 
 
-# logout
-gnokey maketx run alice -pkgpath gno.land/r/demo/sessions -func "LogoutCall" -args "" -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+# teardown alice auth
+gnokey maketx run bob $WORK/teardown_auth.gno -gas-fee 1000000ugnot -gas-wanted 25000000 -broadcast -chainid=tendermint_test
 
 # as bob, try send from alice's account, should fail
-! gnokey maketx call bob -pkgpath gno.land/r/demo/authbanker -func "SendCoinsCall" -args "/u/alice_42" -args "/u/bob_42" -args 14 -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+! gnokey maketx call bob -pkgpath gno.land/r/demo/authbanker -func "SendCoins" -args "/u/alice_42/sess/u/bob_42" -args "/u/bob_42" -args 14 -gas-fee 1000000ugnot -gas-wanted 35000000 -broadcast -chainid=tendermint_test
+
+
+-- setup_auth.gno --
+package main
+
+import (
+    "gno.land/r/demo/userauth"
+    "gno.land/p/demo/auth"
+    "gno.land/r/demo/users"
+    "gno.land/r/demo/authreg"
+)
+
+func main() {
+    userauth.SetAuth("alice42", auth.Mux(map[string]auth.Authenticator{
+        "": auth.EOA(auth.PrevRealms(users.Resolve("alice_42"))),
+        "sess": auth.Mux(map[string]auth.Authenticator{
+            "/u/bob_42": auth.EntityRef("/u/bob_42", authreg.Resolve),
+        }),
+    }))
+}
+
+-- teardown_auth.gno --
+package main
+
+import (
+    "gno.land/r/demo/userauth"
+    "gno.land/p/demo/auth"
+    "gno.land/r/demo/users"
+    "gno.land/r/demo/authreg"
+)
+
+func main() {
+    userauth.SetAuth("alice42", auth.Mux(map[string]auth.Authenticator{
+        "": auth.EOA(auth.PrevRealms(users.Resolve("alice_42"))),
+    }))
+}
