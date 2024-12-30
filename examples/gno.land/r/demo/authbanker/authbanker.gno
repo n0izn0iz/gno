@@ -32,7 +32,7 @@ func SendCoins(authPath string, to string, amount int64) {
 		panic("sent amount must be >= 0")
 	}
 
-	entityID := auth.AssertEntity(authPath, authreg.Resolve)
+	entityID := auth.AssertEntityOfPath(authPath, authreg.Resolve)
 
 	if entityID == to {
 		panic("cannot send to self")

@@ -12,9 +12,27 @@ import (
 
 type Authenticator interface {
 	Child(key string) Authenticator // returns nil if not found
-	Authenticate() error
+	Authenticate(at Context) error
 	Children() map[string]Authenticator
 	Render() string
+}
+
+type Context interface {
+	PrevRealm() std.Realm
+}
+
+type context struct {
+	prevRealm std.Realm
+}
+
+func (at *context) PrevRealm() std.Realm {
+	// XXX: this is probably unsecure in many ways but I did not find another way to assert caller
+	// only using Assert* functions of this lib to authenticate seems secure
+	return at.prevRealm
+}
+
+func NewContext() Context {
+	return &context{prevRealm: std.PrevRealm()}
 }
 
 type ResolveFn func(slug string) Authenticator
@@ -33,8 +51,9 @@ func Assert(authenticator Authenticator) {
 	if authenticator == nil {
 		panic(errors.New("nil authenticator"))
 	}
-	if err := authenticator.Authenticate(); err != nil {
-		panic(err)
+	at := NewContext()
+	if err := authenticator.Authenticate(at); err != nil {
+		panic(ufmt.Errorf("auth failed: %s\n%s", err.Error(), authenticator.Render()))
 	}
 }
 
@@ -43,7 +62,16 @@ func AssertPath(authPath string, resolve ResolveFn) {
 	Assert(leaf)
 }
 
-func AssertEntity(authPath string, resolve ResolveFn) string {
+func AssertEntity(authPath string, entityID string, resolve ResolveFn) {
+	leaf := Resolve(authPath, resolve)
+	Assert(leaf)
+	authID := BaseEntityID(authPath)
+	if authID != entityID {
+		panic(errors.New("entity not authorized"))
+	}
+}
+
+func AssertEntityOfPath(authPath string, resolve ResolveFn) string {
 	leaf := Resolve(authPath, resolve)
 	Assert(leaf)
 	return BaseEntityID(authPath)
@@ -55,14 +83,16 @@ func Resolve(authPath string, resolve ResolveFn) Authenticator {
 	if len(segments) == 0 {
 		panic(ufmt.Errorf("invalid auth path %q", authPath))
 	}
+	println("root segment", segments[0])
 	node := resolve(segments[0])
 	if node == nil {
-		panic(ufmt.Errorf("unknown auth path %q", segments[0]))
+		panic(ufmt.Errorf("unknown auth root %q", segments[0]))
 	}
 	for i, segment := range segments[1:] {
+		println("segment", segment)
 		node = node.Child(segment)
 		if node == nil {
-			panic(ufmt.Errorf("unknown auth path %q", path.Join(segments[:i+1]...)))
+			panic(ufmt.Errorf("unknown segment %q in %q", segment, "/"+path.Join(segments[:i+1]...)))
 		}
 	}
 	return node
@@ -77,16 +107,12 @@ type mux struct {
 
 var _ Authenticator = (*mux)(nil)
 
-func (m *mux) SetRoute(key string, auth Authenticator) {
-	m.routes[key] = auth
-}
-
-func (m *mux) Authenticate() error {
+func (m *mux) Authenticate(at Context) error {
 	route, ok := m.routes[""]
 	if !ok {
 		return errors.New("no default")
 	}
-	return route.Authenticate()
+	return route.Authenticate(at)
 }
 
 func (m *mux) Child(key string) Authenticator {
@@ -105,19 +131,28 @@ func (m *mux) Render() string {
 	buf := strings.Builder{}
 	buf.WriteString("mux:\n")
 	for key, val := range m.routes {
-		buf.WriteString(ufmt.Sprintf("- %s\n", key))
-		buf.WriteString(indentLines(val.Render(), "  "))
+		buf.WriteString(ufmt.Sprintf("- %q: ", key))
+		buf.WriteString(indentFollowingLines(val.Render(), "  "))
 	}
 	return buf.String()
 }
 
-func Mux(routes map[string]Authenticator) Authenticator {
+func Mux(routes map[string]Authenticator) (Authenticator, *MuxAdmin) {
 	if routes == nil {
 		routes = make(map[string]Authenticator)
 	}
-	return &mux{
+	m := &mux{
 		routes: routes,
 	}
+	return m, &MuxAdmin{mux: m}
+}
+
+type MuxAdmin struct {
+	mux *mux
+}
+
+func (madm *MuxAdmin) Routes() map[string]Authenticator {
+	return madm.mux.routes
 }
 
 // PrevRealms
@@ -129,10 +164,14 @@ type prevRealms struct {
 
 var _ Authenticator = (*prevRealms)(nil)
 
-func (pr *prevRealms) Authenticate() error {
-	caller := std.PrevRealm().Addr()
-	if _, ok := pr.allowed[caller]; ok {
-		return ufmt.Errorf("%q is not an allowed caller", caller)
+func (pr *prevRealms) Authenticate(at Context) error {
+	caller := at.PrevRealm()
+	if _, ok := pr.allowed[caller.Addr()]; !ok {
+		allowed := []string{}
+		for key := range pr.allowed {
+			allowed = append(allowed, key.String())
+		}
+		return ufmt.Errorf("%q (%q) is not an allowed caller, allowed in %q (%q): %s", caller.Addr().String(), caller.PkgPath(), std.CurrentRealm().Addr().String(), std.CurrentRealm().PkgPath(), strings.Join(allowed, ", "))
 	}
 	return nil
 }
@@ -184,10 +223,10 @@ type eoa struct {
 
 var _ Authenticator = (*eoa)(nil)
 
-func (e *eoa) Authenticate() error {
+func (e *eoa) Authenticate(at Context) error {
 	std.AssertOriginCall()
 	if e.child != nil {
-		return e.child.Authenticate()
+		return e.child.Authenticate(at)
 	}
 	return nil
 }
@@ -222,8 +261,8 @@ type entityRef struct {
 
 var _ Authenticator = (*entityRef)(nil)
 
-func (e *entityRef) Authenticate() error {
-	return Resolve(e.id, e.resolve).Authenticate()
+func (e *entityRef) Authenticate(at Context) error {
+	return Resolve(e.id, e.resolve).Authenticate(at)
 }
 
 func (e *entityRef) Child(key string) Authenticator {
@@ -235,7 +274,7 @@ func (e *entityRef) Children() map[string]Authenticator {
 }
 
 func (e *entityRef) Render() string {
-	return e.id
+	return "entity: " + e.id
 }
 
 func EntityRef(id string, resolve ResolveFn) Authenticator {
@@ -255,11 +294,11 @@ type session struct {
 
 var _ Authenticator = (*session)(nil)
 
-func (s *session) Authenticate() error {
+func (s *session) Authenticate(at Context) error {
 	if !time.Now().Before(s.expiry) {
 		return ufmt.Errorf("expired on %s", s.expiry.String())
 	}
-	return s.child.Authenticate()
+	return s.child.Authenticate(at)
 }
 
 func (s *session) Child(key string) Authenticator {
@@ -281,6 +320,76 @@ func Session(child Authenticator, expiry time.Time) Authenticator {
 	return &session{child: child, expiry: expiry}
 }
 
+// Session
+//
+
+type sessions struct {
+	mux     *mux
+	admin   string
+	resolve ResolveFn
+}
+
+var _ Authenticator = (*sessions)(nil)
+
+func (s *sessions) Authenticate(at Context) error {
+	return errors.New("incomplete auth path")
+}
+
+func (s *sessions) Child(key string) Authenticator {
+	return s.mux.Child(key)
+}
+
+func (s *sessions) Children() map[string]Authenticator {
+	return s.mux.Children()
+}
+
+func (s *sessions) Render() string {
+	return ufmt.Sprintf("sessions %s", s.mux.Render())
+}
+
+type SessionsAdm interface {
+	Authenticator
+	Create(authPath string, key string, child Authenticator, expiry time.Time)
+	Drop(key string)
+	SudoDrop(authPath string, key string)
+	SetAdmin(authPath string, newAdmin string)
+}
+
+func (s *sessions) Create(authPath string, key string, child Authenticator, expiry time.Time) {
+	if key == "" {
+		panic(errors.New("empty key"))
+	}
+	AssertEntity(authPath, s.admin, s.resolve)
+	s.mux.routes[key] = Session(child, expiry)
+}
+
+func (s *sessions) Drop(key string) {
+	sess := s.mux.routes[key]
+	Assert(sess)
+	delete(s.mux.routes, key)
+}
+
+func (s *sessions) SudoDrop(authPath string, key string) {
+	AssertEntity(authPath, s.admin, s.resolve)
+	if key == "" {
+		s.mux.routes = make(map[string]Authenticator)
+		return
+	}
+	delete(s.mux.routes, key)
+}
+
+func (s *sessions) SetAdmin(authPath string, newAdmin string) {
+	if newAdmin == "" {
+		panic(errors.New("invalid new admin"))
+	}
+	AssertEntity(authPath, s.admin, s.resolve)
+	s.admin = newAdmin
+}
+
+func Sessions(admin string, resolve ResolveFn) SessionsAdm {
+	return &sessions{admin: admin, resolve: resolve, mux: &mux{routes: make(map[string]Authenticator)}}
+}
+
 // render utils
 //
 
@@ -291,6 +400,19 @@ func indentLines(str string, indent string) string {
 			continue
 		}
 		lines[i] = indent + line
+	}
+	return strings.Join(lines, "\n")
+}
+func indentFollowingLines(str string, indent string) string {
+	lines := strings.Split(str, "\n")
+	if len(lines) <= 1 {
+		return str
+	}
+	for i, line := range lines[1:] {
+		if line == "" {
+			continue
+		}
+		lines[i+1] = indent + line
 	}
 	return strings.Join(lines, "\n")
 }

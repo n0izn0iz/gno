@@ -65,12 +65,14 @@ func Register(authenticator func() auth.Authenticator) {
 
 func Resolve(name string) auth.Authenticator {
 	resolved, ok := reverseVanity[name]
-	if !ok {
+	if ok {
+		resolved = std.DerivePkgAddr(resolved).String()
+	} else {
 		resolved = name
 	}
 	authenticator, ok := authenticators[resolved]
 	if !ok {
-		panic(ufmt.Errorf("unknown authenticator %q", name))
+		panic(ufmt.Errorf("unknown authenticator %q (%q)", name, resolved))
 	}
 	return authenticator()
 }

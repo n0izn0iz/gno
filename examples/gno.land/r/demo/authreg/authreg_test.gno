@@ -17,17 +17,17 @@ func TestAuthreg(t *testing.T) {
 	Register(func() auth.Authenticator { return ma })
 
 	// test get
-	Resolve(authRealm.Addr().String()).Authenticate()
+	auth.Assert(Resolve(authRealm.Addr().String()))
 	urequire.True(t, ma.called)
 
 	// test unknown provider
-	urequire.PanicsWithMessage(t, "unknown auth provider", func() {
+	urequire.PanicsWithMessage(t, `unknown authenticator "g1dcwfeqnjgq4cfsmx6dypfht5hxqpwrmzpp4jqr"`, func() {
 		Resolve(unknownRealm.Addr().String())
 	})
 
 	// test unregistering
 	Register(nil)
-	urequire.PanicsWithMessage(t, "unknown auth provider", func() {
+	urequire.PanicsWithMessage(t, `unknown authenticator "g14xpsd30w583dzme7m4kw32fwcpatr0x0gtw3pn"`, func() {
 		Resolve(authRealm.Addr().String())
 	})
 }
@@ -39,7 +39,7 @@ type mockAuth struct {
 var _ auth.Authenticator = (*mockAuth)(nil)
 
 // Authenticate implements auth.Authenticator.
-func (m *mockAuth) Authenticate() error {
+func (m *mockAuth) Authenticate(at auth.Context) error {
 	m.called = true
 	return nil
 }
