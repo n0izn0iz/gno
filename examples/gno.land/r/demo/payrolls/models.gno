@@ -1,11 +1,11 @@
 package payrolls
 
 import (
-	"errors"
 	"std"
 	"time"
 
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/unicoin"
 )
 
 // XXX: should pass a read-only payroll object to those funcs
@@ -13,55 +13,60 @@ import (
 // DistribFn is a distribution function used to compute and amount of released coins at a particular point in time.
 //
 // It must return payrolls [Coins]
-type DistribFn func(worked time.Duration) std.Coins
+type DistribFn func(worked time.Duration) unicoin.Unicoins
 
 // BreakupFn is a function used to compute payroll termination bonuses.
 //
 // It must return payrolls [Coins]
-type BreakupFn func(elapsed time.Duration, pauseDuration time.Duration, source CallSource) std.Coins
+type BreakupFn func(elapsed time.Duration, pauseDuration time.Duration, source CallSource) unicoin.Unicoins
 
 // DistribStep returns a distribution function that will release coins every `per` duration.
-func DistribStep(coins std.Coins, per time.Duration) DistribFn {
-	return func(elapsed time.Duration) std.Coins {
+func DistribStep(ucs unicoin.Unicoins, per time.Duration) DistribFn {
+	return func(elapsed time.Duration) unicoin.Unicoins {
 		blocksCount := elapsed / per
-		out := make(std.Coins, 0, len(coins))
-		for _, coin := range coins {
-			out = append(out, std.NewCoin(coin.Denom, coin.Amount*int64(blocksCount)))
+		res := unicoin.Unicoins{}
+		for kind, coins := range ucs {
+			out := make(std.Coins, 0, len(coins))
+			for _, coin := range coins {
+				out = append(out, std.NewCoin(coin.Denom, coin.Amount*int64(blocksCount)))
+			}
+			res[kind] = out
 		}
-		return out
+		return res
 	}
 }
 
 // DistribLinear returns a distribution function that will continuously release coins every seconds and amount to a rate of `coins` every `per` duration.
-func DistribLinear(coins std.Coins, per time.Duration) DistribFn {
-	return func(elapsed time.Duration) std.Coins {
-		out := make(std.Coins, 0, len(coins))
-		for _, coin := range coins {
-			newAmount := (int64(elapsed.Seconds()) * coin.Amount) / int64(per.Seconds())
-			out = append(out, std.NewCoin(coin.Denom, newAmount))
+func DistribLinear(ucs unicoin.Unicoins, per time.Duration) DistribFn {
+	return func(elapsed time.Duration) unicoin.Unicoins {
+		res := unicoin.Unicoins{}
+		for kind, coins := range ucs {
+			out := make(std.Coins, 0, len(coins))
+			for _, coin := range coins {
+				newAmount := (int64(elapsed.Seconds()) * coin.Amount) / int64(per.Seconds())
+				out = append(out, std.NewCoin(coin.Denom, newAmount))
+			}
+			res[kind] = out
 		}
-		return out
+		return res
 	}
 }
 
 // DistribMonthlyStep returns a distribution function that will release `coins` every months
-func DistribMonthlyStep(amountPerMonth std.Coins) DistribFn {
+func DistribMonthlyStep(amountPerMonth unicoin.Unicoins) DistribFn {
 	return DistribStep(amountPerMonth, time.Hour*24*30)
 }
 
 // DistribMonthlyStep returns a distribution function that will continuously release coins every seconds and amount to a rate of `coins` every months
-func DistribMonthlyContinuous(amountPerMonth std.Coins) DistribFn {
+func DistribMonthlyContinuous(amountPerMonth unicoin.Unicoins) DistribFn {
 	return DistribLinear(amountPerMonth, time.Hour*24*30)
 }
 
 // CreateMonthlyContinuous creates a payroll with a continuous release at a fixed rate per months of a token identified by denom.
 //
 // denom must be a payrolls [Coins] denom
-func CreateMonthlyContinuous(namespace string, label string, beneficiary std.Address, amountPerMonth int64, denom string) seqid.ID {
-	if amountPerMonth <= 0 || denom == "" {
-		panic(errors.New("invalid input"))
-	}
-	coinsPerMonth := std.NewCoins(std.NewCoin(denom, amountPerMonth))
+func CreateMonthlyContinuous(namespace string, label string, beneficiary std.Address, amountPerMonth string) seqid.ID {
+	coinsPerMonth := uccp.FromArg(amountPerMonth, std.PrevRealm().Addr(), beneficiary)
 	return Create(namespace, label, beneficiary, DistribMonthlyContinuous(coinsPerMonth), nil)
 }
 
@@ -70,31 +75,32 @@ func CreateMonthlyContinuous(namespace string, label string, beneficiary std.Add
 // Denom must be a payrolls [Coins] denom
 //
 // See: https://travail-emploi.gouv.fr/le-contrat-de-travail-duree-indeterminee-cdi
-func CreateCDI(namespace string, label string, beneficiary std.Address, amountPerMonth int64, denom string) seqid.ID {
-	if amountPerMonth <= 0 || denom == "" {
-		panic(errors.New("invalid input"))
-	}
-	coinsPerMonth := std.NewCoins(std.NewCoin(denom, amountPerMonth))
+func CreateCDI(namespace string, label string, beneficiary std.Address, amountPerMonth string) seqid.ID {
+	coinsPerMonth := uccp.FromArg(amountPerMonth, std.PrevRealm().Addr(), beneficiary)
 	return Create(namespace, label, beneficiary, DistribMonthlyStep(coinsPerMonth), BreakupCDI(coinsPerMonth))
 }
 
 // BreakupCDI is a breakup function that will release an amount of coins
 // according to a simplified "Rupture Conventionelle" (conventional breakup) model based on the French CDI employment contract
-func BreakupCDI(coinsPerMonth std.Coins) BreakupFn {
+func BreakupCDI(coinsPerMonth unicoin.Unicoins) BreakupFn {
 	const hoursPerYear = float64(8_670)
-	return func(elapsed time.Duration, pauseDuration time.Duration, source CallSource) std.Coins {
+	return func(elapsed time.Duration, pauseDuration time.Duration, source CallSource) unicoin.Unicoins {
 		if source != CallSourceCreator {
-			return nil
+			return unicoin.Unicoins{}
 		}
 
 		// conventional breakup
-		out := make(std.Coins, 0, len(coinsPerMonth))
 		worked := elapsed - pauseDuration
 		numYears := worked.Hours() / hoursPerYear
-		for _, coin := range coinsPerMonth {
-			newAmount := int64(0.25 * float64(coin.Amount) * numYears)
-			out = append(out, std.NewCoin(coin.Denom, newAmount))
+		res := unicoin.Unicoins{}
+		for kind, coins := range coinsPerMonth {
+			out := make(std.Coins, 0, len(coins))
+			for _, coin := range coins {
+				newAmount := int64(0.25 * float64(coin.Amount) * numYears)
+				out = append(out, std.NewCoin(coin.Denom, newAmount))
+			}
+			res[kind] = out
 		}
-		return out
+		return res
 	}
 }

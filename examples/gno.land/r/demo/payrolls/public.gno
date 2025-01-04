@@ -7,17 +7,25 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/unicoin"
 	"gno.land/r/demo/grc20reg"
 )
 
 var (
 	id                    seqid.ID
+	uccp                  *unicoin.ContextProvider
 	payrolls              avl.Tree                          // seqid.ID -> *payroll
 	payrollsByVault       = make(map[string]*avl.Tree)      // vaultID -> seqid.ID -> *payroll
 	payrollsByBeneficiary = make(map[std.Address]*avl.Tree) // addr -> seqid.ID -> *payroll
 )
+
+func init() {
+	uccp = unicoin.NewContextProvider(
+		unicoin.NewNativeContext("nat"),
+		unicoin.NewGRC20RegContext("20r", grc20reg.Get),
+	)
+}
 
 // Create creates a new payroll using the vault identified by the caller and namespace.
 //
@@ -37,14 +45,16 @@ func Create(namespace string, label string, beneficiary std.Address, distrib Dis
 	}
 
 	p := payroll{
-		id:          id.Next(),
-		vaultID:     vaultID,
-		createdAt:   time.Now(),
-		distrib:     distrib,
-		breakup:     breakup,
-		beneficiary: beneficiary,
-		label:       label,
-		creatorAddr: std.PrevRealm().Addr(),
+		id:             id.Next(),
+		vaultID:        vaultID,
+		createdAt:      time.Now(),
+		distrib:        distrib,
+		breakup:        breakup,
+		beneficiary:    beneficiary,
+		label:          label,
+		creatorAddr:    std.PrevRealm().Addr(),
+		breakupCoins:   unicoin.Unicoins{},
+		totalWithdrawn: unicoin.Unicoins{},
 	}
 
 	payrolls.Set(id.String(), &p)
@@ -80,7 +90,7 @@ func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 
 	vaultAmount := getVaultCoins(p.vaultID)
 	claimed := p.claim(vaultAmount)
-	if coinsEmpty(claimed) {
+	if unicoinsEmpty(claimed) {
 		if mustClaim {
 			panic(errors.New("nothing to claim"))
 		} else {
@@ -92,7 +102,7 @@ func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 		destination = caller
 	}
 
-	sendCoins(destination, claimed)
+	uccp.Send(std.CurrentRealm().Addr(), destination, claimed)
 
 	vaults.Set(p.vaultID, subCoins(vaultAmount, claimed))
 
@@ -117,107 +127,31 @@ func ClaimAll(destination std.Address) {
 	}
 }
 
-// FundNative funds a vault identified by base and namespace using the OrigSend coins
-//
-// - base must be an address or a pkgpath
-//
-// - Anyone can fund any vault
-func FundNative(base string, namespace string) {
+func Fund(base string, namespace string, coins unicoin.Unicoins) {
 	assertValidNamespace(namespace)
 
-	std.AssertOriginCall()
-
-	var (
-		id  string
-		err error
-	)
-
+	var id string
 	if base == "" {
 		id = vaultIDFromRealm(std.PrevRealm(), namespace)
 	} else {
+		var err error
 		id, err = vaultID(base, namespace)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	send := std.GetOrigSend()
-	if coinsEmpty(send) {
-		panic(errors.New("invalid amount"))
-	}
-	for i := range send {
-		send[i].Denom = "/native/" + send[i].Denom
-	}
-	vaults.Set(id, addCoins(getVaultCoins(id), send))
+	uccp.Receive(coins)
+	vaults.Set(id, addCoins(getVaultCoins(id), coins))
 }
 
-// FundGRC20Reg funds a vault identified by base and namespace using the fqname of a registered coin
-//
-// - If amount is empty, it will use the full allowance
-//
-// - base must be an address or a pkgpath
-//
-// - Anyone can fund any vault
-func FundGRC20Reg(base string, namespace string, fqname string, amount int64) {
+func FundFromArgs(base string, namespace string, uniarg string) {
+	coins := uccp.FromArg(uniarg, std.PrevRealm().Addr(), std.CurrentRealm().Addr())
+	Fund(base, namespace, coins)
+}
+
+func WithdrawFunds(namespace string, coins unicoin.Unicoins, destination std.Address) {
 	assertValidNamespace(namespace)
-
-	tokenGetter := grc20reg.MustGet(fqname)
-	token := tokenGetter()
-	if token == nil {
-		panic(errors.New("token getter returned nil"))
-	}
-
-	fundGRC20(base, namespace, token, "/grc20/"+fqname, amount)
-}
-
-func fundGRC20(base string, namespace string, token *grc20.Token, tokenKey string, amount int64) {
-	anyAmount := amount == -1
-	if !anyAmount && amount <= 0 {
-		panic(errors.New("invalid amount"))
-	}
-
-	var (
-		id  string
-		err error
-	)
-
-	if base == "" {
-		id = vaultIDFromRealm(std.PrevRealm(), namespace)
-	} else {
-		id, err = vaultID(base, namespace)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	if anyAmount {
-		amount = int64(token.Allowance(std.PrevRealm().Addr(), std.CurrentRealm().Addr()))
-	}
-
-	teller := token.CallerTeller()
-	if err := teller.TransferFrom(std.PrevRealm().Addr(), std.CurrentRealm().Addr(), uint64(amount)); err != nil {
-		panic(err)
-	}
-
-	send := std.NewCoins(std.NewCoin(tokenKey, int64(amount)))
-	vaults.Set(id, addCoins(getVaultCoins(id), send))
-}
-
-// WithdrawFunds withdraws from a vault identified by the caller and namespace. It uses the coins identified by a payrolls denom (see [Coins])
-//
-// - If amount is empty, it will withdraw all available funds
-//
-// - If destination is empty, it will send to the caller's address
-func WithdrawFunds(namespace string, denom string, amount int64, destination std.Address) {
-	assertValidNamespace(namespace)
-
-	if amount < -1 {
-		panic(errors.New("invalid amount"))
-	}
-	anyAmount := amount == -1
-	if amount == 0 {
-		panic(errors.New("invalid amount"))
-	}
 
 	prevRealm := std.PrevRealm()
 	if len(destination) == 0 {
@@ -226,29 +160,13 @@ func WithdrawFunds(namespace string, denom string, amount int64, destination std
 
 	id := vaultIDFromRealm(prevRealm, namespace)
 
-	vaultAmount := getVaultCoins(id)
-	if vaultAmount.AmountOf(denom) == 0 {
-		panic(errors.New("vault empty"))
-	}
+	uccp.Send(std.CurrentRealm().Addr(), destination, coins)
+	vaults.Set(id, subCoins(getVaultCoins(id), coins))
+}
 
-	available := vaultAmount
-	payrollsByVault[id].Iterate("", "", func(_ string, value interface{}) bool {
-		p := value.(*payroll)
-		available = subCoins(available, p.available())
-		return false
-	})
-
-	availableAmount := available.AmountOf(denom)
-	if anyAmount {
-		amount = availableAmount
-	} else if availableAmount < amount {
-		panic(errors.New("not enough in vault"))
-	}
-
-	toSend := std.NewCoins(std.Coin{Denom: denom, Amount: amount})
-	sendCoins(destination, toSend)
-
-	vaults.Set(id, subCoins(vaultAmount, toSend))
+func WithdrawFundsFromArgs(namespace string, arg string, destination std.Address) {
+	coins := uccp.FromArg(arg, std.CurrentRealm().Addr(), destination)
+	WithdrawFunds(namespace, coins, destination)
 }
 
 // Stop terminates the payroll identified by id. It will distribute coins using the payroll's breakup function.

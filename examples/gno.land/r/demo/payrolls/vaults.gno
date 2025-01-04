@@ -6,20 +6,21 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/unicoin"
 	"gno.land/p/demo/users"
 	rusers "gno.land/r/demo/users"
 )
 
-var vaults avl.Tree // std.Addresss -> std.Coins
+var vaults avl.Tree // std.Addresss -> unicoin.Unicoins
 
 var errInvalidInput = errors.New("invalid input")
 
-func getVaultCoins(id string) std.Coins {
+func getVaultCoins(id string) unicoin.Unicoins {
 	amount, ok := vaults.Get(id)
 	if ok {
-		return amount.(std.Coins)
+		return amount.(unicoin.Unicoins)
 	}
-	return nil
+	return unicoin.Unicoins{}
 }
 
 func assertValidNamespace(namespace string) {

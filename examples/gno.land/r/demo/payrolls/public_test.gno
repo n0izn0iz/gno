@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/unicoin"
 	"gno.land/p/demo/urequire"
 	grc20factory "gno.land/r/demo/grc20factory"
 	"gno.land/r/demo/payrolls"
@@ -14,8 +15,7 @@ func TestPayrollsGRC20(t *testing.T) {
 	monthlyPAY := std.NewCoin("gno.land/r/demo/grc20factory.PAY", 5_000_0000)
 	monthlyGRC20s := std.NewCoins(monthlyPAY)
 	namespace := "finance"
-	monthlyPayrollsCoins, err := payrolls.Coins(nil, monthlyGRC20s)
-	urequire.NoError(t, err)
+	monthlyPayrollsCoins := unicoin.Unicoins{"20r": monthlyGRC20s}
 
 	tokenCreator := testutils.TestAddress("pay-creator")
 	payrollsRealm := std.NewCodeRealm("gno.land/r/demo/payrolls")
@@ -34,7 +34,7 @@ func TestPayrollsGRC20(t *testing.T) {
 	grc20factory.Faucet("PAY")
 	grc20factory.Approve("PAY", payrollsRealm.Addr(), fundAmount)
 
-	payrolls.FundGRC20Reg(creator.String(), namespace, monthlyPAY.Denom, -1)
+	payrolls.FundFromArgs(creator.String(), namespace, "any/20r/gno.land/r/demo/grc20factory.PAY")
 
 	payrollID := payrolls.Create(namespace, "Salary Monthly", beneficiary,
 		payrolls.DistribMonthlyContinuous(monthlyPayrollsCoins),
@@ -116,7 +116,7 @@ func TestPayrollsGRC20(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		std.TestSetOrigCaller(creator)
 		std.TestSetRealm(std.NewUserRealm(creator))
-		payrolls.WithdrawFunds(namespace, monthlyPayrollsCoins[0].Denom, -1, "")
+		payrolls.WithdrawFundsFromArgs(namespace, "any/20r/gno.land/r/demo/grc20factory.PAY", "")
 	})
 
 	beneficiaryBalance = grc20factory.BalanceOf("PAY", beneficiary)
@@ -136,8 +136,7 @@ func TestPayrollsNative(t *testing.T) {
 	monthlyNatives := std.NewCoins(monthlyUgnot)
 	namespace := "native-finance"
 	fundAmount := int64(20_000_000)
-	monthlyPayrollsCoins, err := payrolls.Coins(monthlyNatives, nil)
-	urequire.NoError(t, err)
+	monthlyPayrollsCoins := unicoin.Unicoins{"nat": monthlyNatives}
 
 	balanceOf := func(addr std.Address) int64 {
 		banker := std.GetBanker(std.BankerTypeReadonly)
@@ -155,7 +154,7 @@ func TestPayrollsNative(t *testing.T) {
 	std.TestIssueCoins(payrollsRealm.Addr(), send)
 	std.TestSetOrigSend(send, nil)
 
-	payrolls.FundNative(creator.String(), namespace)
+	payrolls.FundFromArgs(creator.String(), namespace, "")
 
 	payrollID := payrolls.Create(namespace, "Salary Monthly", beneficiary,
 		payrolls.DistribMonthlyContinuous(monthlyPayrollsCoins),
@@ -237,7 +236,7 @@ func TestPayrollsNative(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		std.TestSetOrigCaller(creator)
 		std.TestSetRealm(std.NewUserRealm(creator))
-		payrolls.WithdrawFunds(namespace, monthlyPayrollsCoins[0].Denom, -1, "")
+		payrolls.WithdrawFundsFromArgs(namespace, "", "")
 	})
 
 	beneficiaryBalance = balanceOf(beneficiary)

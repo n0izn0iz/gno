@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/unicoin"
 )
 
 type payroll struct {
@@ -14,14 +15,14 @@ type payroll struct {
 	vaultID        string
 	createdAt      time.Time
 	beneficiary    std.Address
-	totalWithdrawn std.Coins
+	totalWithdrawn unicoin.Unicoins
 	distrib        DistribFn
 	breakup        BreakupFn
 	paused         bool
 	pausedAt       time.Time
 	pauseDuration  time.Duration
 	label          string
-	breakupCoins   std.Coins
+	breakupCoins   unicoin.Unicoins
 	stopped        bool
 	stoppedAt      time.Time
 }
@@ -33,7 +34,7 @@ const (
 	CallSourceBeneficiary
 )
 
-func (p *payroll) freeAt(when time.Time, estimate bool) std.Coins {
+func (p *payroll) freeAt(when time.Time, estimate bool) unicoin.Unicoins {
 	if p.stopped && p.stoppedAt.Before(when) {
 		when = p.stoppedAt
 	}
@@ -50,15 +51,15 @@ func (p *payroll) freeAt(when time.Time, estimate bool) std.Coins {
 	return res
 }
 
-func (p *payroll) available() std.Coins {
+func (p *payroll) available() unicoin.Unicoins {
 	return subCoins(addCoins(p.freeAt(time.Now(), false), p.breakupCoins), p.totalWithdrawn)
 }
 
-func (p *payroll) estimateDay() std.Coins {
+func (p *payroll) estimateDay() unicoin.Unicoins {
 	return subCoins(p.freeAt(time.Now().Add(time.Hour*24), true), p.freeAt(time.Now(), true))
 }
 
-func (p *payroll) claim(vaultAmount std.Coins) std.Coins {
+func (p *payroll) claim(vaultAmount unicoin.Unicoins) unicoin.Unicoins {
 	available := p.available()
 	claimable := clampCoins(available, vaultAmount)
 	p.totalWithdrawn = addCoins(p.totalWithdrawn, claimable)
@@ -104,7 +105,7 @@ func (p *payroll) stop(source std.Address) {
 	p.stoppedAt = time.Now()
 }
 
-func (p *payroll) getBreakupCoins(source CallSource) std.Coins {
+func (p *payroll) getBreakupCoins(source CallSource) unicoin.Unicoins {
 	if p.breakup == nil {
 		return nil
 	}
