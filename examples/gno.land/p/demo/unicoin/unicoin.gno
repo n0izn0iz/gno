@@ -129,7 +129,7 @@ func (ucs Unicoins) AssertLeq(other Unicoins) {
 	if ok := ucs.Leq(other); ok {
 		return
 	}
-	panic(ufmt.Errorf("%s is not less than %s", ucs, other))
+	panic(ufmt.Errorf("%s is greater than %s", ucs, other))
 }
 
 func (ucs Unicoins) Leq(other Unicoins) bool {
