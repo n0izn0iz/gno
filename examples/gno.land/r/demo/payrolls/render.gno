@@ -18,7 +18,7 @@ import (
 const (
 	listMaxSize   = 50
 	defaultFqname = "gno.land/r/demo/foo20"
-	defaultDenom  = "/grc20/" + defaultFqname
+	defaultDenom  = "/r20/" + defaultFqname
 )
 
 func Render(renderPath string) string {
@@ -62,12 +62,12 @@ func Render(renderPath string) string {
 
 			if shouldEstimate {
 				available := p.available()
-				estimatedAvailable = addCoins(estimatedAvailable, available)
+				estimatedAvailable = estimatedAvailable.Add(available)
 
-				claimable := clampCoins(available, getVaultCoins(p.vaultID))
-				estimatedClaimable = addCoins(estimatedClaimable, claimable)
+				claimable := available.ClampMax(getVaultCoins(p.vaultID))
+				estimatedClaimable = estimatedClaimable.Add(claimable)
 
-				estimatedDay = addCoins(estimatedDay, p.estimateDay())
+				estimatedDay = estimatedDay.Add(p.estimateDay())
 			}
 
 			return false
@@ -75,7 +75,7 @@ func Render(renderPath string) string {
 
 		actions := []string{}
 
-		if !shouldEstimate || !unicoinsEmpty(estimatedClaimable) {
+		if !shouldEstimate || !estimatedClaimable.Empty() {
 			actions = append(actions, renderButton("Claim all", "ClaimAll", map[string]string{
 				"destination": addr.String(),
 			}))
@@ -84,14 +84,13 @@ func Render(renderPath string) string {
 		actions = append(actions, renderButton("New payroll", "CreateMonthlyContinuous", map[string]string{
 			"label":          "Salary Monthly",
 			"beneficiary":    addr.String(),
-			"amountPerMonth": "10000",
-			"denom":          defaultDenom,
+			"amountPerMonth": "10000" + defaultDenom,
 		}))
 
 		w.WriteString(renderActions("", actions))
 
 		if shouldEstimate {
-			addCoins(estimatedAvailable, estimatedDay).ForEach(func(kind unicoin.Kind, coin std.Coin) {
+			estimatedAvailable.Add(estimatedDay).ForEach(func(kind unicoin.Kind, coin std.Coin) {
 				w.WriteString(ufmt.Sprintf("- %s:\n", renderCoinDenom(kind, coin.Denom)))
 				w.WriteString(renderEstimatedMonthly("  ", kind, estimatedDay[kind].AmountOf(coin.Denom), coin.Denom))
 				w.WriteString(renderClaimable("  ", kind, estimatedClaimable[kind].AmountOf(coin.Denom), estimatedAvailable[kind].AmountOf(coin.Denom), coin.Denom, true))
@@ -137,45 +136,40 @@ func Render(renderPath string) string {
 		tree.ReverseIterateByOffset(0, listMaxSize, func(key string, value interface{}) bool {
 			p := value.(*payroll)
 			if shouldEstimate {
-				estimatedDebt = addCoins(estimatedDebt, p.available())
-				estimatedDay = addCoins(estimatedDay, p.estimateDay())
+				estimatedDebt = estimatedDebt.Add(p.available())
+				estimatedDay = estimatedDay.Add(p.estimateDay())
 			}
 			payrollsBuffer.WriteString(renderPayroll(p, "vault"))
 			return false
 		})
 
 		funds := getVaultCoins(vaultID)
-		balance := subCoins(funds, estimatedDebt)
+		balance := funds.Sub(estimatedDebt)
 
 		actions := []string{}
-		actions = append(actions, renderButton("Deposit native", "FundNative", map[string]string{
+		actions = append(actions, renderButton("Deposit native", "FundFromArgs", map[string]string{
 			"base":      base,
 			"namespace": namespace,
 		}))
-		actions = append(actions, renderButton("Deposit GRC20", "FundGRC20Reg", map[string]string{
+		actions = append(actions, renderButton("Deposit GRC20", "FundFromArgs", map[string]string{
 			"base":      base,
 			"namespace": namespace,
-			"fqname":    defaultFqname,
-			"amount":    "-1",
+			"uniarg":    "any" + defaultDenom,
 		}))
-		if !shouldEstimate || coinsHasPositive(balance) {
-			actions = append(actions, renderButton("Withdraw funds", "WithdrawFunds", map[string]string{
-				"namespace":   namespace,
-				"amount":      "-1",
-				"denom":       defaultDenom,
-				"destination": base,
+		if !shouldEstimate || balance.HasPositive() {
+			actions = append(actions, renderButton("Withdraw funds", "WithdrawFundsFromArgs", map[string]string{
+				"namespace": namespace,
 			}))
 		}
 		actions = append(actions, renderButton("New payroll", "CreateMonthlyContinuous", map[string]string{
 			"namespace":      namespace,
 			"label":          "Salary Monthly",
-			"amountPerMonth": "10000",
-			"denom":          defaultDenom,
+			"amountPerMonth": "10000" + defaultDenom,
 		}))
 		w.WriteString(renderActions("", actions))
 
 		if shouldEstimate {
-			addCoins(balance, estimatedDay).ForEach(func(kind unicoin.Kind, coin std.Coin) {
+			balance.Add(estimatedDay).ForEach(func(kind unicoin.Kind, coin std.Coin) {
 				w.WriteString(ufmt.Sprintf("- %s:\n", renderCoinDenom(kind, coin.Denom)))
 
 				color := "🟢"
@@ -223,10 +217,9 @@ func Render(renderPath string) string {
 
 		vaults.Iterate("", "", func(key string, value interface{}) bool {
 			w.WriteString(ufmt.Sprintf("## %s\n", key))
-			v := value.(std.Coins)
-			for _, coin := range v {
-				w.WriteString(ufmt.Sprintf("- %d %q\n", coin.Amount, coin.Denom))
-			}
+			value.(unicoin.Unicoins).ForEach(func(kind unicoin.Kind, coin std.Coin) {
+				w.WriteString(ufmt.Sprintf("  - %d %q\n", coin.Amount, "/"+kind.String()+"/"+coin.Denom))
+			})
 			return false
 		})
 
@@ -236,8 +229,7 @@ func Render(renderPath string) string {
 		actions := []string{}
 		actions = append(actions, renderButton("New payroll", "CreateMonthlyContinuous", map[string]string{
 			"label":          "Salary Monthly",
-			"amountPerMonth": "10000",
-			"denom":          defaultDenom,
+			"amountPerMonth": "10000" + defaultDenom,
 		}))
 		w.WriteString(renderActions("", actions))
 
@@ -307,7 +299,7 @@ func renderPayroll(p *payroll, pov string) string {
 
 	available := p.available()
 	vaultAmount := getVaultCoins(p.vaultID)
-	claimable := clampCoins(available, vaultAmount)
+	claimable := available.ClampMax(vaultAmount)
 
 	sb.WriteString(ufmt.Sprintf("  - 🏁 Created at: %s\n", p.createdAt.Format(time.DateTime)))
 
@@ -321,7 +313,7 @@ func renderPayroll(p *payroll, pov string) string {
 
 	actions := []string{}
 
-	if pov != "vault" && coinsHasPositive(claimable) {
+	if pov != "vault" && claimable.HasPositive() {
 		actions = append(actions, renderButton("Claim", "Claim", map[string]string{
 			"id":          strconv.FormatUint(uint64(p.id), 10),
 			"destination": p.beneficiary.String(),
@@ -347,13 +339,13 @@ func renderPayroll(p *payroll, pov string) string {
 	sb.WriteString(renderActions("  ", actions))
 
 	estimatedDay := p.estimateDay()
-	allCoins := addCoins(available, estimatedDay)
+	allCoins := available.Add(estimatedDay)
 
 	beneficiaryBreakupCoins := unicoin.Unicoins{}
 	creatorBreakupCoins := unicoin.Unicoins{}
 	if pov == "details" {
-		allCoins = addCoins(allCoins, beneficiaryBreakupCoins)
-		allCoins = addCoins(allCoins, creatorBreakupCoins)
+		allCoins = allCoins.Add(beneficiaryBreakupCoins)
+		allCoins = allCoins.Add(creatorBreakupCoins)
 		beneficiaryBreakupCoins = p.getBreakupCoins(CallSourceBeneficiary)
 		creatorBreakupCoins = p.getBreakupCoins(CallSourceCreator)
 	}
@@ -462,11 +454,7 @@ func linkPrefix() string {
 }
 
 func renderCoin(kind unicoin.Kind, coin std.Coin) string {
-	ctx, ok := uccp.Get(kind)
-	if !ok {
-		return ufmt.Sprintf("%d /%s/%s", coin.Amount, kind, coin.Denom)
-	}
-	return ctx.Render(coin)
+	return ufmt.Sprintf("%s %s", renderCoinAmount(kind, coin), renderCoinDenom(kind, coin.Denom))
 }
 
 func renderCoinAmount(kind unicoin.Kind, coin std.Coin) string {
@@ -474,7 +462,7 @@ func renderCoinAmount(kind unicoin.Kind, coin std.Coin) string {
 	if !ok {
 		return strconv.FormatInt(coin.Amount, 10)
 	}
-	return strings.Split(ctx.Render(coin), " ")[0]
+	return ctx.RenderAmount(coin)
 }
 
 func renderCoinDenom(kind unicoin.Kind, denom string) string {
@@ -482,5 +470,5 @@ func renderCoinDenom(kind unicoin.Kind, denom string) string {
 	if !ok {
 		return denom
 	}
-	return strings.Split(ctx.Render(std.NewCoin(denom, 0)), " ")[1]
+	return ctx.RenderDenom(denom)
 }

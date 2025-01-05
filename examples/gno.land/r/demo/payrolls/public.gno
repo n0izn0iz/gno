@@ -90,7 +90,7 @@ func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 
 	vaultAmount := getVaultCoins(p.vaultID)
 	claimed := p.claim(vaultAmount)
-	if unicoinsEmpty(claimed) {
+	if claimed.Empty() {
 		if mustClaim {
 			panic(errors.New("nothing to claim"))
 		} else {
@@ -104,7 +104,7 @@ func claimInternal(id seqid.ID, destination std.Address, mustClaim bool) bool {
 
 	uccp.Send(std.CurrentRealm().Addr(), destination, claimed)
 
-	vaults.Set(p.vaultID, subCoins(vaultAmount, claimed))
+	vaults.Set(p.vaultID, vaultAmount.Sub(claimed))
 
 	return true
 }
@@ -142,11 +142,11 @@ func Fund(base string, namespace string, coins unicoin.Unicoins) {
 	}
 
 	uccp.Receive(coins)
-	vaults.Set(id, addCoins(getVaultCoins(id), coins))
+	vaults.Set(id, getVaultCoins(id).Add(coins))
 }
 
 func FundFromArgs(base string, namespace string, uniarg string) {
-	coins := uccp.FromArg(uniarg, std.PrevRealm().Addr(), std.CurrentRealm().Addr())
+	coins := uccp.FromArg(uniarg, std.PrevRealm().Addr(), std.CurrentRealm().Addr(), true)
 	Fund(base, namespace, coins)
 }
 
@@ -160,12 +160,30 @@ func WithdrawFunds(namespace string, coins unicoin.Unicoins, destination std.Add
 
 	id := vaultIDFromRealm(prevRealm, namespace)
 
+	vaultCoins := getVaultCoins(id).Clone()
+	payrollsByVault[id].Iterate("", "", func(key string, value interface{}) bool {
+		vaultCoins = vaultCoins.Sub(value.(*payroll).available())
+		return false
+	})
+	vaultCoins = vaultCoins.ClampMin(unicoin.Unicoins{})
+
+	if coins == nil {
+		coins = vaultCoins
+	} else {
+		coins.ClampMax(vaultCoins)
+		coins.FillAnys(vaultCoins)
+	}
+
 	uccp.Send(std.CurrentRealm().Addr(), destination, coins)
-	vaults.Set(id, subCoins(getVaultCoins(id), coins))
+	vaults.Set(id, getVaultCoins(id).Sub(coins))
 }
 
 func WithdrawFundsFromArgs(namespace string, arg string, destination std.Address) {
-	coins := uccp.FromArg(arg, std.CurrentRealm().Addr(), destination)
+	if arg == "" {
+		WithdrawFunds(namespace, nil, destination)
+		return
+	}
+	coins := uccp.FromArg(arg, std.CurrentRealm().Addr(), destination, false)
 	WithdrawFunds(namespace, coins, destination)
 }
 

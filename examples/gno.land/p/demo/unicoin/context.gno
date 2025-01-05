@@ -21,7 +21,9 @@ type UnicoinContext interface {
 	Kind() Kind
 	Send(from std.Address, to std.Address, coins std.Coins)
 	Allowance(from std.Address, to std.Address, denoms []string) std.Coins
-	Render(coin std.Coin) string
+	// XXX: Decimals() uint32
+	RenderDenom(denom string) string
+	RenderAmount(coin std.Coin) string
 }
 
 type ContextProvider struct {
@@ -58,22 +60,22 @@ func (ctxprov *ContextProvider) Receive(ucs Unicoins) {
 	ctxprov.Send(caller, realm, ucs)
 }
 
-func (ctxprov *ContextProvider) ReceiveArg(arg string) Unicoins {
+func (ctxprov *ContextProvider) ReceiveArg(arg string, allowAny bool) Unicoins {
 	caller := std.PrevRealm().Addr()
 	realm := std.CurrentRealm().Addr()
-	ucs := ctxprov.FromArg(arg, caller, realm)
+	ucs := ctxprov.FromArg(arg, caller, realm, allowAny)
 	ctxprov.Send(caller, realm, ucs)
 	return ucs
 }
 
-func (ctxprov *ContextProvider) FromArg(arg string, from std.Address, to std.Address) Unicoins {
-	if arg == "" {
+func (ctxprov *ContextProvider) FromArg(arg string, from std.Address, to std.Address, resolveAny bool) Unicoins {
+	if resolveAny && arg == "" {
 		arg = "any/" + KindNative.String()
 	}
 	parts := strings.Split(arg, ",")
 	ucs := Unicoins{}
 	for _, part := range parts {
-		if part == "any/"+KindNative.String() {
+		if resolveAny && part == "any/"+KindNative.String() {
 			ctx, ok := ctxprov.Get(KindNative)
 			if !ok {
 				panic(ufmt.Errorf(`unknown unicoin kind "native"`))
@@ -108,25 +110,28 @@ func (ctxprov *ContextProvider) FromArg(arg string, from std.Address, to std.Add
 		ucs[unidenom.Kind] = append(ucs[unidenom.Kind], std.NewCoin(unidenom.Subject, amount))
 	}
 
-	for kind, coins := range ucs {
-		denoms := []string{}
-		for _, c := range coins {
-			if c.Amount != -1 {
-				continue
+	// XXX: extract to FillAnysWithAllowance? allow any/kind/nat
+	if resolveAny {
+		for kind, coins := range ucs {
+			denoms := []string{}
+			for _, c := range coins {
+				if c.Amount != -1 {
+					continue
+				}
+				denoms = append(denoms, c.Denom)
 			}
-			denoms = append(denoms, c.Denom)
-		}
-		ctx, ok := ctxprov.Get(kind)
-		if !ok {
-			panic(ufmt.Errorf("unknown unicoin kind %q", string(kind)))
-		}
-		allowances := ctx.Allowance(from, to, denoms)
-		for i, c := range coins {
-			if c.Amount != -1 {
-				continue
+			ctx, ok := ctxprov.Get(kind)
+			if !ok {
+				panic(ufmt.Errorf("unknown unicoin kind %q", string(kind)))
 			}
-			amount := allowances.AmountOf(c.Denom)
-			ucs[kind][i].Amount = amount
+			allowances := ctx.Allowance(from, to, denoms)
+			for i, c := range coins {
+				if c.Amount != -1 {
+					continue
+				}
+				amount := allowances.AmountOf(c.Denom)
+				ucs[kind][i].Amount = amount
+			}
 		}
 	}
 
@@ -147,9 +152,14 @@ type nativeContext struct {
 	kind Kind
 }
 
-// Render implements UnicoinContext.
-func (s *nativeContext) Render(coin std.Coin) string {
-	return ufmt.Sprintf("%d %s", coin.Amount, coin.Denom)
+// RenderAmount implements UnicoinContext.
+func (s *nativeContext) RenderAmount(coin std.Coin) string {
+	return strconv.FormatInt(coin.Amount, 10)
+}
+
+// RenderDenom implements UnicoinContext.
+func (s *nativeContext) RenderDenom(denom string) string {
+	return denom
 }
 
 func NewNativeContext(kind Kind) UnicoinContext {
@@ -219,6 +229,23 @@ type grc20RegContext struct {
 	resolve func(key string) grc20.TokenGetter
 }
 
+// RenderAmount implements UnicoinContext.
+func (s *grc20RegContext) RenderAmount(coin std.Coin) string {
+	token := s.token(coin.Denom)
+
+	amountF := float64(coin.Amount) / float64(math.Pow10(int(token.GetDecimals())))
+	return ufmt.Sprintf("%g", amountF)
+}
+
+// RenderDenom implements UnicoinContext.
+func (s *grc20RegContext) RenderDenom(denom string) string {
+	token := s.token(denom)
+	if strings.HasPrefix(denom, std.GetChainDomain()) {
+		return ufmt.Sprintf("[$%s](%s)", token.GetSymbol(), strings.TrimPrefix(denom, std.GetChainDomain()))
+	}
+	return ufmt.Sprintf("$%s (%s)", token.GetSymbol(), denom)
+}
+
 // Render implements UnicoinContext.
 func (s *grc20RegContext) Render(coin std.Coin) string {
 	token := s.token(coin.Denom)
@@ -256,11 +283,16 @@ func (s *grc20RegContext) Kind() Kind {
 
 // Send implements UnicoinContext.
 func (s *grc20RegContext) Send(from std.Address, to std.Address, coins std.Coins) {
+	fromCurrent := std.CurrentRealm().Addr() == from
 	for _, coin := range coins {
 		if coin.Amount < 0 {
 			panic(errors.New("trying to send negative amount"))
 		}
-		s.token(coin.Denom).CallerTeller().TransferFrom(from, to, uint64(coin.Amount))
+		if fromCurrent {
+			s.token(coin.Denom).CallerTeller().Transfer(to, uint64(coin.Amount))
+		} else {
+			s.token(coin.Denom).CallerTeller().TransferFrom(from, to, uint64(coin.Amount))
+		}
 	}
 }
 

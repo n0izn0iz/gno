@@ -1,6 +1,7 @@
 package payrolls
 
 import (
+	"errors"
 	"std"
 	"time"
 
@@ -22,6 +23,9 @@ type BreakupFn func(elapsed time.Duration, pauseDuration time.Duration, source C
 
 // DistribStep returns a distribution function that will release coins every `per` duration.
 func DistribStep(ucs unicoin.Unicoins, per time.Duration) DistribFn {
+	if !ucs.OnlyPositive() {
+		panic(errors.New("negative amount"))
+	}
 	return func(elapsed time.Duration) unicoin.Unicoins {
 		blocksCount := elapsed / per
 		res := unicoin.Unicoins{}
@@ -38,6 +42,9 @@ func DistribStep(ucs unicoin.Unicoins, per time.Duration) DistribFn {
 
 // DistribLinear returns a distribution function that will continuously release coins every seconds and amount to a rate of `coins` every `per` duration.
 func DistribLinear(ucs unicoin.Unicoins, per time.Duration) DistribFn {
+	if !ucs.OnlyPositive() {
+		panic(errors.New("negative amount"))
+	}
 	return func(elapsed time.Duration) unicoin.Unicoins {
 		res := unicoin.Unicoins{}
 		for kind, coins := range ucs {
@@ -66,7 +73,7 @@ func DistribMonthlyContinuous(amountPerMonth unicoin.Unicoins) DistribFn {
 //
 // denom must be a payrolls [Coins] denom
 func CreateMonthlyContinuous(namespace string, label string, beneficiary std.Address, amountPerMonth string) seqid.ID {
-	coinsPerMonth := uccp.FromArg(amountPerMonth, std.PrevRealm().Addr(), beneficiary)
+	coinsPerMonth := uccp.FromArg(amountPerMonth, std.PrevRealm().Addr(), beneficiary, false)
 	return Create(namespace, label, beneficiary, DistribMonthlyContinuous(coinsPerMonth), nil)
 }
 
@@ -76,7 +83,7 @@ func CreateMonthlyContinuous(namespace string, label string, beneficiary std.Add
 //
 // See: https://travail-emploi.gouv.fr/le-contrat-de-travail-duree-indeterminee-cdi
 func CreateCDI(namespace string, label string, beneficiary std.Address, amountPerMonth string) seqid.ID {
-	coinsPerMonth := uccp.FromArg(amountPerMonth, std.PrevRealm().Addr(), beneficiary)
+	coinsPerMonth := uccp.FromArg(amountPerMonth, std.PrevRealm().Addr(), beneficiary, false)
 	return Create(namespace, label, beneficiary, DistribMonthlyStep(coinsPerMonth), BreakupCDI(coinsPerMonth))
 }
 

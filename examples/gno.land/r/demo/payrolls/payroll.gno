@@ -52,17 +52,17 @@ func (p *payroll) freeAt(when time.Time, estimate bool) unicoin.Unicoins {
 }
 
 func (p *payroll) available() unicoin.Unicoins {
-	return subCoins(addCoins(p.freeAt(time.Now(), false), p.breakupCoins), p.totalWithdrawn)
+	return p.freeAt(time.Now(), false).Add(p.breakupCoins).Sub(p.totalWithdrawn)
 }
 
 func (p *payroll) estimateDay() unicoin.Unicoins {
-	return subCoins(p.freeAt(time.Now().Add(time.Hour*24), true), p.freeAt(time.Now(), true))
+	return p.freeAt(time.Now().Add(time.Hour*24), true).Sub(p.freeAt(time.Now(), true))
 }
 
 func (p *payroll) claim(vaultAmount unicoin.Unicoins) unicoin.Unicoins {
 	available := p.available()
-	claimable := clampCoins(available, vaultAmount)
-	p.totalWithdrawn = addCoins(p.totalWithdrawn, claimable)
+	claimable := available.ClampMax(vaultAmount)
+	p.totalWithdrawn = p.totalWithdrawn.Add(claimable)
 	return claimable
 }
 

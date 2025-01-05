@@ -58,11 +58,11 @@ func TestPayrollsGRC20(t *testing.T) {
 
 	expectedBeneficiaryBalance := uint64(964506)
 
-	beneficiaryBalance := grc20factory.BalanceOf("PAY", beneficiary)
-	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
-
 	realmBalance = grc20factory.BalanceOf("PAY", payrollsRealm.Addr())
 	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, realmBalance)
+
+	beneficiaryBalance := grc20factory.BalanceOf("PAY", beneficiary)
+	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
 
 	urequire.NotPanics(t, func() {
 		std.TestSetOrigCaller(beneficiary)
@@ -116,7 +116,7 @@ func TestPayrollsGRC20(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		std.TestSetOrigCaller(creator)
 		std.TestSetRealm(std.NewUserRealm(creator))
-		payrolls.WithdrawFundsFromArgs(namespace, "any/20r/gno.land/r/demo/grc20factory.PAY", "")
+		payrolls.WithdrawFundsFromArgs(namespace, "", "")
 	})
 
 	beneficiaryBalance = grc20factory.BalanceOf("PAY", beneficiary)
@@ -144,6 +144,7 @@ func TestPayrollsNative(t *testing.T) {
 	}
 
 	payrollsRealm := std.NewCodeRealm("gno.land/r/demo/payrolls")
+
 	creator := testutils.TestAddress("creator")
 	beneficiary := testutils.TestAddress("beneficiary")
 
@@ -152,8 +153,8 @@ func TestPayrollsNative(t *testing.T) {
 
 	send := std.NewCoins(std.NewCoin("ugnot", fundAmount))
 	std.TestIssueCoins(payrollsRealm.Addr(), send)
+	std.TestSetOrigPkgAddr(payrollsRealm.Addr())
 	std.TestSetOrigSend(send, nil)
-
 	payrolls.FundFromArgs(creator.String(), namespace, "")
 
 	payrollID := payrolls.Create(namespace, "Salary Monthly", beneficiary,
@@ -241,6 +242,10 @@ func TestPayrollsNative(t *testing.T) {
 
 	beneficiaryBalance = balanceOf(beneficiary)
 	urequire.Equal(t, expectedBeneficiaryBalance, beneficiaryBalance)
+
+	realmBalance = balanceOf(payrollsRealm.Addr())
+	urequire.Equal(t, int64(0), realmBalance)
+
 	creatorBalance = balanceOf(creator)
 	urequire.Equal(t, fundAmount-expectedBeneficiaryBalance, creatorBalance)
 
@@ -249,4 +254,5 @@ func TestPayrollsNative(t *testing.T) {
 		std.TestSetRealm(std.NewUserRealm(beneficiary))
 		payrolls.ClaimAll(std.Address(""))
 	})
+
 }
