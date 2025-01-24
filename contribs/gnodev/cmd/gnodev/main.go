@@ -534,7 +534,7 @@ func runEventLoop(
 func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.KeyPress {
 	cc := make(chan rawterm.KeyPress, 1)
 	go func() {
-		defer close(cc)
+		// defer close(cc)
 		key, err := rt.ReadKeyPress()
 		if err != nil {
 			logger.Error("unable to read keypress", "err", err)
