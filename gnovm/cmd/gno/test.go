@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type testCmd struct {
@@ -191,6 +193,34 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		cmd.rootDir = gnoenv.RootDir()
 	}
 
+	// Workaround for single file patterns: convert them to directory patterns
+	// XXX: Remove this when `command-line-arguments` will be supported
+	processedArgs := make([]string, 0, len(args))
+	singleFileFilters := make(map[string][]string) // dir -> files to test
+	for _, arg := range args {
+		// Check for single file pattern
+		if strings.HasSuffix(arg, ".gno") {
+			dir := filepath.Dir(arg)
+			if dir == "" {
+				dir = "."
+			}
+			absPath, err := filepath.Abs(arg)
+			if err != nil {
+				return fmt.Errorf("failed to get abs path for %s: %w", arg, err)
+			}
+			absDir := filepath.Dir(absPath)
+			fileName := filepath.Base(arg)
+
+			// Track which files to test in each directory
+			if _, exists := singleFileFilters[absDir]; !exists {
+				processedArgs = append(processedArgs, dir)
+			}
+			singleFileFilters[absDir] = append(singleFileFilters[absDir], fileName)
+		} else {
+			processedArgs = append(processedArgs, arg)
+		}
+	}
+
 	loadConf := packages.LoadConfig{
 		Fetcher:    testPackageFetcher,
 		Out:        io.Err(),
@@ -198,7 +228,7 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 		Test:       true,
 		AllowEmpty: true,
 	}
-	pkgs, err := packages.Load(loadConf, args...)
+	pkgs, err := packages.Load(loadConf, processedArgs...)
 	if err != nil {
 		return err
 	}
@@ -229,7 +259,6 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 	opts.Debug = cmd.debug
 	opts.FailfastFlag = cmd.failfast
 	cache := make(gno.TypeCheckCache, 64)
-
 	// test.ProdStore() is suitable for type-checking prod (non-test) files.
 	// _, pgs := test.ProdStore(cmd.rootDir, opts.WriterForStore())
 
@@ -304,6 +333,33 @@ func execTest(cmd *testCmd, args []string, io commands.IO) error {
 
 		// Read MemPackage with all files.
 		mpkg := gno.MustReadMemPackage(pkg.Dir, pkgPath, gno.MPAnyAll)
+
+		// Apply single file filtering if needed by filtering the Files array
+		// XXX: Remove this when `command-line-arguments` will be supported
+		absDir, _ := filepath.Abs(pkg.Dir)
+		if filesToTest, hasFilter := singleFileFilters[absDir]; hasFilter {
+			// Filter mpkg.Files to only include specified test files and non-test files
+			filteredFiles := make([]*std.MemFile, 0, len(mpkg.Files))
+
+			for _, f := range mpkg.Files {
+				baseName := filepath.Base(f.Name)
+				// Always include non-test files for compilation
+				if !strings.HasSuffix(baseName, "_test.gno") && !strings.HasSuffix(baseName, "_filetest.gno") {
+					filteredFiles = append(filteredFiles, f)
+					continue
+				}
+				// Check if this test file is in our filter list
+				for _, targetFile := range filesToTest {
+					if baseName == targetFile {
+						filteredFiles = append(filteredFiles, f)
+						break
+					}
+				}
+			}
+
+			mpkg.Files = slices.Clip(filteredFiles)
+		}
+
 		var didPanic, didError bool
 		startedAt := time.Now()
 		didPanic = catchPanic(pkg.Dir, pkgPath, io.Err(), func() {
