@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	Ownable = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // dropped in genesis via Enable. XXX We should switch to something better once the GovDAO situation is stabilized.
+	Ownable = ownable.NewWithAddress("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen") // dropped in genesis via Enable. XXX We should switch to something better once the GovDAO situation is stabilized.
 
 	enabled = false
 )

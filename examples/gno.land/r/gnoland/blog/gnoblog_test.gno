@@ -63,7 +63,7 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
+Published by g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
@@ -112,20 +112,20 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag3](/r/gnoland/blog:t/tag3)
 
 Written by moul on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
+Published by g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
@@ -155,20 +155,20 @@ Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
 Written by manfred on 20 May 2022
 
-Published by g1manfred47kzduec920z88wfr64ylksmdcedlf5 to gno.land's blog
+Published by g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen to gno.land's blog
 
 ---
 <details><summary>Comment section</summary>
 
 <h5>comment4
 
-</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen on 13 Feb 09 23:31 UTC</h6>
 
 ---
 
 <h5>comment2
 
-</h5><h6>by g1manfred47kzduec920z88wfr64ylksmdcedlf5 on 13 Feb 09 23:31 UTC</h6>
+</h5><h6>by g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen on 13 Feb 09 23:31 UTC</h6>
 
 ---
 

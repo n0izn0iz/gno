@@ -14,7 +14,7 @@ import (
 
 var gid groups.GroupID
 
-const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+const admin = std.Address("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen")
 
 func main() {
 	caller := std.OriginCaller() // main

@@ -25,6 +25,13 @@ var preRegisteredUsers = []struct {
 
 	// test1 user
 	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
+
+	// samourai
+	{"samcrew", "g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen"},
+	{"davd", "g1jr9fl5jklpc2ul3v3kshekyqn65h6g2dzdrj4z"},
+	{"mikael", "g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r"},
+	{"dadidou", "g1c4a8e6lc9uuaeqmlsw6gyyxpvun5pjagcc4twr"},
+	{"norman", "g1tdjkvapz5jxap6zxf06dxp7g88kad72svpzcu9"},
 }
 
 func init() {

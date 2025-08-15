@@ -19,7 +19,7 @@ func clearState(t *testing.T) {
 		Title:  "gno.land's blog",
 		Prefix: "/r/gnoland/blog:",
 	}
-	adminAddr = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	adminAddr = std.Address("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen")
 	inPause = false
 	moderatorList = avl.NewTree()
 	commenterList = avl.NewTree()

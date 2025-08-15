@@ -12,7 +12,7 @@ import (
 func init() {
 	memberstore.Get().SetTier(memberstore.T1)
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"), &memberstore.Member{InvitationPoints: 3}) // Jae
-	memberstore.Get().SetMember(memberstore.T1, std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), &memberstore.Member{InvitationPoints: 3}) // Manfred
+	memberstore.Get().SetMember(memberstore.T1, std.Address("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen"), &memberstore.Member{InvitationPoints: 3}) // Manfred
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2"), &memberstore.Member{InvitationPoints: 3}) // Milos
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g1qhskthp2uycmg4zsdc9squ2jds7yv3t0qyrlnp"), &memberstore.Member{InvitationPoints: 3}) // Petar
 	memberstore.Get().SetMember(memberstore.T1, std.Address("g18amm3fc00t43dcxsys6udug0czyvqt9e7p23rd"), &memberstore.Member{InvitationPoints: 3}) // Marc
