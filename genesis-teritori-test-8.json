@@ -16,6 +16,17 @@
       ]
     }
   },
+  "validators": [
+    {
+      "address": "g1qyxag299pt969w0ml0wqyl234px8hyqgnhmd8m",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "R3sZ1ijhfRY3sl6+i4xVhbkpJ8MkCz9yTlnxnFvf2Pw="
+      },
+      "power": "1",
+      "name": "samourai-validator"
+    }
+  ],
   "app_hash": null,
   "app_state": {
     "@type": "/gno.GenesisState",

@@ -3,3 +3,4 @@ g1jr9fl5jklpc2ul3v3kshekyqn65h6g2dzdrj4z=1000000000000ugnot # davd -> 1 million 
 g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r=1000000000000ugnot # mikael -> 1 million gnot
 g1c4a8e6lc9uuaeqmlsw6gyyxpvun5pjagcc4twr=1000000000000ugnot # dadidou -> 1 million gnot
 g1tdjkvapz5jxap6zxf06dxp7g88kad72svpzcu9=1000000000000ugnot # norman -> 1 million gnot
+g1q40u8vwx9pxp28awwvfzpp09cv69w0v6pxzxhr=1000000000000ugnot # lours -> 1 million gnot
