@@ -5,3 +5,4 @@ g1c4a8e6lc9uuaeqmlsw6gyyxpvun5pjagcc4twr=1000000000000ugnot # dadidou -> 1 milli
 g1tdjkvapz5jxap6zxf06dxp7g88kad72svpzcu9=1000000000000ugnot # norman -> 1 million gnot
 g1q40u8vwx9pxp28awwvfzpp09cv69w0v6pxzxhr=1000000000000ugnot # lours -> 1 million gnot
 g14vxq5e5pt5sev7rkz2ej438scmxtylnzv5vnkw=1000000000000ugnot # villaquiranm -> 1 million gnot
+g1qfgeankhm8zeh47ftpsea8u8x8p3vsgdhkzawp=1000000000000ugnot # miosan_desu -> 1 million gnot

@@ -31,6 +31,7 @@
   "app_state": {
     "@type": "/gno.GenesisState",
     "balances": [
+      "g1qfgeankhm8zeh47ftpsea8u8x8p3vsgdhkzawp=1000000000000ugnot",
       "g1q40u8vwx9pxp28awwvfzpp09cv69w0v6pxzxhr=1000000000000ugnot",
       "g1tdjkvapz5jxap6zxf06dxp7g88kad72svpzcu9=1000000000000ugnot",
       "g1jr9fl5jklpc2ul3v3kshekyqn65h6g2dzdrj4z=1000000000000ugnot",
