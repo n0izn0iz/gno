@@ -6,3 +6,4 @@ g1tdjkvapz5jxap6zxf06dxp7g88kad72svpzcu9=1000000000000ugnot # norman -> 1 millio
 g1q40u8vwx9pxp28awwvfzpp09cv69w0v6pxzxhr=1000000000000ugnot # lours -> 1 million gnot
 g14vxq5e5pt5sev7rkz2ej438scmxtylnzv5vnkw=1000000000000ugnot # villaquiranm -> 1 million gnot
 g1qfgeankhm8zeh47ftpsea8u8x8p3vsgdhkzawp=1000000000000ugnot # miosan_desu -> 1 million gnot
+g15xcnvt8mhekqrmgdnjepwlsqpk0z79cp030x3g=1000000000000ugnot # zelo -> 1 million gnot
