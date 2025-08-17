@@ -2,7 +2,10 @@
 
 gno test .
 
-# gno test ./run_test.gno # XXX: add back support for command-line-arguments package
+gno test ./run_test.gno
+
+! stdout .+
+stderr 'ok'
 
 gno test -v .
 
