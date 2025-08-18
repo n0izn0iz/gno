@@ -9,3 +9,4 @@ g1qfgeankhm8zeh47ftpsea8u8x8p3vsgdhkzawp=1000000000000ugnot # miosan_desu -> 1 m
 g15xcnvt8mhekqrmgdnjepwlsqpk0z79cp030x3g=1000000000000ugnot # zelo -> 1 million gnot
 g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c=1000000000000ugnot # zxxma -> 1 million gnot
 g1lyzdjdjshcg936w689f44d5yzgg7tcg0w3rl62=1000000000000ugnot # naim -> 1 million gnot
+g1at2h7kdhz2m9lv6azn54mwu4wl95k94wu90uwj=1000000000000ugnot # gh0st -> 1 million gnot

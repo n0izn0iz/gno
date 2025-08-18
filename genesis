@@ -1,0 +1,77 @@
+{
+  "genesis_time": "2025-08-15T11:58:32Z",
+  "chain_id": "teritori-test-8",
+  "consensus_params": {
+    "Block": {
+      "MaxTxBytes": "1000000",
+      "MaxDataBytes": "2000000",
+      "MaxBlockBytes": "0",
+      "MaxGas": "3000000000",
+      "TimeIotaMS": "100"
+    },
+    "Validator": {
+      "PubKeyTypeURLs": [
+        "/tm.PubKeyEd25519",
+        "/tm.PubKeySecp256k1"
+      ]
+    }
+  },
+  "validators": [
+    {
+      "address": "g1qyxag299pt969w0ml0wqyl234px8hyqgnhmd8m",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "R3sZ1ijhfRY3sl6+i4xVhbkpJ8MkCz9yTlnxnFvf2Pw="
+      },
+      "power": "1",
+      "name": "samourai-validator"
+    }
+  ],
+  "app_hash": null,
+  "app_state": {
+    "@type": "/gno.GenesisState",
+    "balances": [
+      "g1tdjkvapz5jxap6zxf06dxp7g88kad72svpzcu9=1000000000000ugnot",
+      "g1jr9fl5jklpc2ul3v3kshekyqn65h6g2dzdrj4z=1000000000000ugnot",
+      "g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen=1000000000000000000ugnot",
+      "g1c4a8e6lc9uuaeqmlsw6gyyxpvun5pjagcc4twr=1000000000000ugnot",
+      "g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r=1000000000000ugnot"
+    ],
+    "txs": [],
+    "auth": {
+      "params": {
+        "max_memo_bytes": "65536",
+        "tx_sig_limit": "7",
+        "tx_size_cost_per_byte": "10",
+        "sig_verify_cost_ed25519": "590",
+        "sig_verify_cost_secp256k1": "1000",
+        "gas_price_change_compressor": "10",
+        "target_gas_ratio": "70",
+        "initial_gasprice": {
+          "gas": "1000",
+          "price": "1ugnot"
+        },
+        "unrestricted_addrs": [
+          "g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen"
+        ],
+        "fee_collector": "g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen"
+      }
+    },
+    "bank": {
+      "params": {
+        "restricted_denoms": [
+          "ugnot"
+        ]
+      }
+    },
+    "vm": {
+      "params": {
+        "sysnames_pkgpath": "gno.land/r/sys/names",
+        "chain_domain": "gno.land",
+        "default_deposit": "600000000ugnot",
+        "storage_price": "100ugnot"
+      },
+      "realm_params": null
+    }
+  }
+}
