@@ -31,4 +31,4 @@ func main() {
 }
 
 // Error:
-// please register, otherwise minimum fee 100000000 is required if anonymous
+// r/gnoland/users: you need to send exactly 0 ugnot

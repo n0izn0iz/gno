@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// dst board not exist
+// r/gnoland/users: you need to send exactly 0 ugnot

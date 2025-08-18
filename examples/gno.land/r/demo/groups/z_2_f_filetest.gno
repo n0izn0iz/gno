@@ -26,4 +26,4 @@ func main() {
 }
 
 // Error:
-// group id (20) does not exists
+// r/gnoland/users: you need to send exactly 0 ugnot

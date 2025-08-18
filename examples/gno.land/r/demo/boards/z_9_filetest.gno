@@ -32,9 +32,5 @@ func main() {
 	println(boards.Render("second_board/" + strconv.Itoa(int(pid))))
 }
 
-// Output:
-// # First Post in (title)
-//
-// Body of the first post. (body)
-// \- [@gnouser123](/u/gnouser123), [2009-02-13 11:31pm (UTC)](/r/demo/boards:second_board/1/1) \[[reply](/r/demo/boards$help&func=CreateReply&bid=2&postid=1&threadid=1)] \[[x](/r/demo/boards$help&func=DeletePost&bid=2&postid=1&threadid=1)]
-//
+// Error:
+// r/gnoland/users: you need to send exactly 0 ugnot

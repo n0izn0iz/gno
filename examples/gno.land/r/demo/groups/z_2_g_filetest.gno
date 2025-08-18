@@ -32,4 +32,4 @@ func main() {
 }
 
 // Error:
-// unauthorized to delete group
+// r/gnoland/users: you need to send exactly 0 ugnot

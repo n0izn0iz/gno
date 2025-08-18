@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// thread not exist
+// r/gnoland/users: you need to send exactly 0 ugnot

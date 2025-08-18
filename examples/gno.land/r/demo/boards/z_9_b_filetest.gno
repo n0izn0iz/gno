@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// invalid non-user call
+// r/gnoland/users: you need to send exactly 0 ugnot
