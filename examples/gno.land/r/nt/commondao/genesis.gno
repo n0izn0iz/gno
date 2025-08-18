@@ -19,7 +19,7 @@ func init() {
 
 	// Add initial members
 	dao.Members().Add("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
-	dao.Members().Add("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen") // @moul
+	dao.Members().Add("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen") // @samcrew
 
 	// Index DAO
 	daos.Set(id.String(), dao)

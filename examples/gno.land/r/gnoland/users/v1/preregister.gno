@@ -39,6 +39,7 @@ var preRegisteredUsers = []struct {
 	{"zxxma", "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"},
 	{"naim", "g1lyzdjdjshcg936w689f44d5yzgg7tcg0w3rl62"},
 	{"gh0st", "g1at2h7kdhz2m9lv6azn54mwu4wl95k94wu90uwj"},
+	{"pips", "g1n7qma7mslv6768avfvh9k2hkp477ykwcvuyh6p"},
 }
 
 func init() {

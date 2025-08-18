@@ -15,7 +15,7 @@ var (
 
 func init() {
 	// adminAddr = std.OriginCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen" // @moul
+	adminAddr = "g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen" // @samcrew
 }
 
 func AdminSetAdminAddr(_ realm, addr std.Address) {
