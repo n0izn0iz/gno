@@ -10,7 +10,7 @@ import (
 
 func TestReadOnlyPublicMethods(t *testing.T) {
 	var (
-		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		admin = std.Address("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen")
 		alice = testutils.TestAddress("alice")
 		bob   = testutils.TestAddress("bob")
 	)
@@ -58,7 +58,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 
 func TestErrConditions(t *testing.T) {
 	var (
-		admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+		admin = std.Address("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen")
 		empty = std.Address("")
 	)
 

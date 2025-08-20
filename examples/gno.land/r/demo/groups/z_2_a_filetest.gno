@@ -14,7 +14,7 @@ import (
 
 var gid groups.GroupID
 
-const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+const admin = std.Address("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen")
 
 func main() {
 	caller := std.OriginCaller() // main123
@@ -48,30 +48,5 @@ func main() {
 	println(groups.RenderGroup(gid))
 }
 
-// Output:
-// Group ID: 0000000001
-//
-// Group Name: test_group
-//
-// Group Creator: main123
-//
-// Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
-//
-// Group Last MemberID: 0000000000
-//
-// Group Members:
-//
-//
-// Group ID: 0000000001
-//
-// Group Name: test_group
-//
-// Group Creator: main123
-//
-// Group createdAt: 2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
-//
-// Group Last MemberID: 0000000001
-//
-// Group Members:
-//
-//
+// Error:
+// r/gnoland/users: you need to send exactly 0 ugnot

@@ -22,8 +22,5 @@ func main() {
 	println(groups.Render(""))
 }
 
-// Output:
-// 1
-// List of all Groups:
-//
-//
+// Error:
+// r/gnoland/users: you need to send exactly 0 ugnot

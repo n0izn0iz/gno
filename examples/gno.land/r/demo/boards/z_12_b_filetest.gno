@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// src board not exist
+// r/gnoland/users: you need to send exactly 0 ugnot

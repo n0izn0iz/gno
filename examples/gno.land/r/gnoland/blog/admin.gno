@@ -17,7 +17,7 @@ var (
 )
 
 var (
-	adminAddr     = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // FIXME: find a way to use this from the main's genesis.
+	adminAddr     = std.Address("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen") // FIXME: find a way to use this from the main's genesis.
 	moderatorList = avl.NewTree()
 	commenterList = avl.NewTree()
 	inPause       bool

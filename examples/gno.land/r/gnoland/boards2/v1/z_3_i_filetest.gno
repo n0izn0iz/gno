@@ -41,4 +41,4 @@ func main() {
 }
 
 // Error:
-// board name is a user name registered to a different user
+// r/gnoland/users: you need to send exactly 0 ugnot

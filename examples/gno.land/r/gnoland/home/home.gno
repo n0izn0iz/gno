@@ -15,7 +15,7 @@ import (
 
 var (
 	override string
-	Admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
+	Admin    = ownable.NewWithAddress("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen") // @samcrew
 )
 
 func Render(_ string) string {

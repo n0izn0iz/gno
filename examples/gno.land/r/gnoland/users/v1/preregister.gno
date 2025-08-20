@@ -25,6 +25,21 @@ var preRegisteredUsers = []struct {
 
 	// test1 user
 	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}, // -> @test1
+
+	// samourai
+	{"samcrew", "g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen"},
+	{"davd", "g1jr9fl5jklpc2ul3v3kshekyqn65h6g2dzdrj4z"},
+	{"mikael", "g16jv3rpz7mkt0gqulxas56se2js7v5vmc6n6e0r"},
+	{"dadidou", "g1c4a8e6lc9uuaeqmlsw6gyyxpvun5pjagcc4twr"},
+	{"norman", "g1tdjkvapz5jxap6zxf06dxp7g88kad72svpzcu9"},
+	{"lours", "g1q40u8vwx9pxp28awwvfzpp09cv69w0v6pxzxhr"},
+	{"villaquiranm", "g14vxq5e5pt5sev7rkz2ej438scmxtylnzv5vnkw"},
+	{"miosan_desu", "g1qfgeankhm8zeh47ftpsea8u8x8p3vsgdhkzawp"},
+	{"zelo", "g15xcnvt8mhekqrmgdnjepwlsqpk0z79cp030x3g"},
+	{"zxxma", "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"},
+	{"naim", "g1lyzdjdjshcg936w689f44d5yzgg7tcg0w3rl62"},
+	{"gh0st", "g1at2h7kdhz2m9lv6azn54mwu4wl95k94wu90uwj"},
+	{"pips", "g1n7qma7mslv6768avfvh9k2hkp477ykwcvuyh6p"},
 }
 
 func init() {

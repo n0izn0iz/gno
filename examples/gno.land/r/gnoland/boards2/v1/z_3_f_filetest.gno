@@ -41,5 +41,5 @@ func main() {
 	println("IDs match =", bid == bid2)
 }
 
-// Output:
-// IDs match = true
+// Error:
+// r/gnoland/users: you need to send exactly 0 ugnot

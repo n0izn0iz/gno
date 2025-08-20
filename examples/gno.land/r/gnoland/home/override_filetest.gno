@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	var admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	var admin = std.Address("g1kfd9f5zlvcvy6aammcmqswa7cyjpu2nyt9qfen")
 	testing.SetOriginCaller(admin)
 	home.AdminSetOverride(cross, "Hello World!")
 	println("---")

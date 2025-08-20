@@ -34,5 +34,5 @@ func main() {
 	println("ID =", bid)
 }
 
-// Output:
-// ID = 1
+// Error:
+// r/gnoland/users: you need to send exactly 0 ugnot

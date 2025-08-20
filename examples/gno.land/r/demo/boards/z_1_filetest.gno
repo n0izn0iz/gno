@@ -24,9 +24,5 @@ func main() {
 	println(boards.Render(""))
 }
 
-// Output:
-// These are all the boards of this realm:
-//
-//  * [/r/demo/boards:test_board_1](/r/demo/boards:test_board_1)
-//  * [/r/demo/boards:test_board_2](/r/demo/boards:test_board_2)
-//
+// Error:
+// r/gnoland/users: you need to send exactly 0 ugnot
