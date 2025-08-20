@@ -13,8 +13,8 @@ func init() {
 	set := []validators.Validator{
 		// samourai-validator
 		{
-			Address:     std.Address("g1qyxag299pt969w0ml0wqyl234px8hyqgnhmd8m"),
-			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3mmr8tz3ctazcmmyh473wx9tpde9ynuxfqt8aeyuk03n3dalk8uug9dqz",
+			Address:     std.Address("g16cepxj9zkusk33v4zuknxd7c6e094uszwe35tl"),
+			PubKey:      "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3fgqgejd8fkde50xhz2mxhesv3ffn0qys0m009znfv7lz4sm3l6paz745",
 			VotingPower: 1,
 		},
 	}
