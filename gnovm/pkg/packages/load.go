@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -15,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
 	"github.com/gnolang/gno/gnovm/tests/stdlibs"
+	"github.com/pelletier/go-toml"
 )
 
 type LoadConfig struct {
@@ -56,12 +58,29 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 		return nil, err
 	}
 
+	gnowork := Gnowork{}
+	if loaderCtx.IsWorkspace {
+		bz, err := os.ReadFile(filepath.Join(loaderCtx.Root, "gnowork.toml"))
+		if err != nil {
+			return nil, fmt.Errorf("read gnowork.toml: %w", err)
+		}
+		if err := toml.Unmarshal(bz, &gnowork); err != nil {
+			return nil, fmt.Errorf("unmarshal gnowork.toml: %w", err)
+		}
+
+		// make ignores absolute
+		for idx, ignore := range gnowork.Ignore {
+			absIgnore := filepath.Join(loaderCtx.Root, ignore)
+			gnowork.Ignore[idx] = absIgnore
+		}
+	}
+
 	// sanity assert
 	if !filepath.IsAbs(loaderCtx.Root) {
 		panic(fmt.Errorf("context root should be absolute at this point, got %q", loaderCtx.Root))
 	}
 
-	expanded, err := expandPatterns(conf.GnoRoot, loaderCtx, conf.Out, patterns...)
+	expanded, err := expandPatterns(conf.GnoRoot, loaderCtx, conf.Out, &gnowork, patterns...)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +100,7 @@ func Load(conf LoadConfig, patterns ...string) (PkgList, error) {
 
 	// load deps
 
-	localDeps := discoverPkgsForLocalDeps(conf, loaderCtx)
+	localDeps := discoverPkgsForLocalDeps(conf, loaderCtx, &gnowork)
 
 	// mark all pattern packages for visit
 	toVisit := []*Package(pkgs)
@@ -240,7 +259,7 @@ func setAdd[T comparable](set map[T]struct{}, val T) bool {
 	return true
 }
 
-func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[string]string {
+func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext, gnowork *Gnowork) map[string]string {
 	// we swallow errors in this routine as we want the most packages we can get
 
 	roots := []string{}
@@ -261,6 +280,11 @@ func discoverPkgsForLocalDeps(conf LoadConfig, loaderCtx *loaderContext) map[str
 			}
 			if d.IsDir() {
 				dir := filepath.Join(root, path)
+
+				if slices.Contains(gnowork.Ignore, dir) {
+					return fs.SkipDir
+				}
+
 				if dir == root {
 					return nil
 				}

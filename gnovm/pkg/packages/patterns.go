@@ -20,7 +20,7 @@ type pkgMatch struct {
 	Match []string
 }
 
-func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, patterns ...string) ([]*pkgMatch, error) {
+func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, gnowork *Gnowork, patterns ...string) ([]*pkgMatch, error) {
 	pkgMatches := []*pkgMatch(nil)
 
 	addPkgDir := func(dir string, match *string) {
@@ -129,7 +129,7 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 				panic(fmt.Errorf("unexpected recursive pattern at this point"))
 			}
 
-			dirs, err := expandRecursive(loaderCtx.Root, pat)
+			dirs, err := expandRecursive(loaderCtx.Root, gnowork, pat)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", match, err)
 			}
@@ -149,7 +149,7 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 	return pkgMatches, nil
 }
 
-func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
+func expandRecursive(workspaceRoot string, gnowork *Gnowork, pattern string) ([]string, error) {
 	// this works because we only support ... at the end of patterns for now
 	patternRoot, _ := filepath.Split(pattern)
 
@@ -170,6 +170,11 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 
 		if d.IsDir() {
 			dir := filepath.Join(patternRoot, path)
+
+			if slices.Contains(gnowork.Ignore, dir) {
+				return fs.SkipDir
+			}
+
 			if dir == workspaceRoot {
 				return nil
 			}
