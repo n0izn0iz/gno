@@ -1,0 +1,79 @@
+adduser test2
+
+loadpkg gno.land/p/nt/ufmt
+
+## start a new node
+gnoland start
+
+## load packages
+gnokey maketx addpkg -pkgdir $WORK/pomme -pkgpath gno.land/r/test/pomme -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/pim -pkgpath gno.land/r/test/pim -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+
+! gnokey maketx addpkg -pkgdir $WORK/poum -pkgpath gno.land/r/test/poum -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -chainid=tendermint_test test1
+stderr 'cannot cur-call to external realm function gno.land/r/test/pomme'
+
+## validate initial state
+gnokey query "vm/qrender" --data "gno.land/r/test/pomme:"
+stdout 'pomme\.value = 0'
+
+## execute pim.IncrementPomme
+gnokey maketx call -pkgpath gno.land/r/test/pim -func IncrementPomme -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey query "vm/qrender" --data "gno.land/r/test/pomme:"
+stdout 'pomme\.value = 1'
+
+-- pomme/gnomod.toml --
+module = "gno.land/r/test/pomme"
+gno = "0.9"
+
+-- pomme/pomme.gno --
+package pomme
+
+import (
+	"gno.land/p/nt/ufmt"
+)
+
+var value = 0
+
+type Pomme struct {}
+
+func (p *Pomme) Increment(cur realm) {
+	value += 1
+}
+
+func Render(path string) string {
+	return ufmt.Sprintf("pomme.value = %d", value)
+}
+
+-- pim/gnomod.toml --
+module = "gno.land/r/test/pim"
+gno = "0.9"
+
+-- pim/pim.gno --
+package pim
+
+import (
+	"gno.land/r/test/pomme"
+)
+
+var pom = &pomme.Pomme{}
+
+func IncrementPomme(cur realm) {
+	pom.Increment(cross)
+}
+
+-- poum/gnomod.toml --
+module = "gno.land/r/test/poum"
+gno = "0.9"
+
+-- poum/poum.gno --
+package poum
+
+import (
+	"gno.land/r/test/pomme"
+)
+
+var pom = &pomme.Pomme{}
+
+func IncrementPomme(cur realm) {
+	pom.Increment(cur)
+}
